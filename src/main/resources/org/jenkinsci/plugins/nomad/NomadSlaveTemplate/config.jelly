@@ -8,7 +8,7 @@
             <f:textbox default="jenkins"/>
         </f:entry>
 
-        <f:entry title="Cpu" field="cpu">
+        <f:entry title="CPU" field="cpu">
             <f:textbox/>
         </f:entry>
 
@@ -27,7 +27,7 @@
         </f:entry>
 
         <f:entry title="Disk" field="disk">
-            <f:textbox/>
+            <f:textbox default="300"/>
         </f:entry>
 
         <f:entry title="Region" field="region">
@@ -43,7 +43,7 @@
         </f:entry>
 
         <f:entry title="Priority" field="priority">
-            <f:textbox/>
+            <f:textbox default="50"/>
         </f:entry>
 
         <f:entry title="Idle termination time" field="idleTerminationInMinutes">
