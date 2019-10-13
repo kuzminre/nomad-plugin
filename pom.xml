@@ -10,7 +10,7 @@
   </parent>
 
   <artifactId>nomad</artifactId>
-  <version>0.6.10</version>
+  <version>0.6.11-SNAPSHOT</version>
   <packaging>hpi</packaging>
 
   <name>Nomad Plugin</name>
@@ -30,7 +30,7 @@
     <developerConnection>scm:git:ssh://git@github.com/jenkinsci/nomad-plugin.git
     </developerConnection>
     <url>https://github.com/jenkinsci/nomad-plugin</url>
-    <tag>v0.6.10</tag>
+    <tag>v0.6.0</tag>
   </scm>
 
   <properties>
