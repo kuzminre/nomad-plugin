@@ -11,13 +11,15 @@ import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 import java.util.logging.Logger;
 
-public class NomadSlaveTemplate implements Describable<NomadSlaveTemplate> {
+public class NomadWorkerTemplate implements Describable<NomadWorkerTemplate> {
 
     private static final String SLAVE_PREFIX = "jenkins";
-    private static final Logger LOGGER = Logger.getLogger(NomadSlaveTemplate.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(NomadWorkerTemplate.class.getName());
 
     private final int idleTerminationInMinutes;
     private final Boolean reusable;
@@ -48,14 +50,12 @@ public class NomadSlaveTemplate implements Describable<NomadSlaveTemplate> {
     private final String securityOpt;
     private final String capAdd;
     private final String capDrop;
-
-
+    private final String datacenters;
+    private final Set<LabelAtom> labelSet;
     private String driver;
-    private String datacenters;
-    private Set<LabelAtom> labelSet;
 
     @DataBoundConstructor
-    public NomadSlaveTemplate(
+    public NomadWorkerTemplate(
             String prefix,
             String cpu,
             String memory,
@@ -137,27 +137,13 @@ public class NomadSlaveTemplate implements Describable<NomadSlaveTemplate> {
         return this;
     }
 
-
-    @Extension
-    public static final class DescriptorImpl extends Descriptor<NomadSlaveTemplate> {
-
-        public DescriptorImpl() {
-            load();
-        }
-
-        @Override
-        public String getDisplayName() {
-            return null;
-        }
-    }
-
     @Override
     @SuppressWarnings("unchecked")
-    public Descriptor<NomadSlaveTemplate> getDescriptor() {
+    public Descriptor<NomadWorkerTemplate> getDescriptor() {
         return Jenkins.get().getDescriptor(getClass());
     }
 
-    public String createSlaveName() {
+    public String createWorkerName() {
         return getPrefix() + "-" + Long.toHexString(System.nanoTime());
     }
 
@@ -174,7 +160,7 @@ public class NomadSlaveTemplate implements Describable<NomadSlaveTemplate> {
     }
 
     public String getPrefix() {
-        if(StringUtils.isNotEmpty(prefix))
+        if (StringUtils.isNotEmpty(prefix))
             return prefix;
         return SLAVE_PREFIX;
     }
@@ -251,15 +237,15 @@ public class NomadSlaveTemplate implements Describable<NomadSlaveTemplate> {
         return driver;
     }
 
-    public Boolean isDockerDriver(){
+    public Boolean isDockerDriver() {
         return getDriver().equals("docker");
     }
 
-    public Boolean isJavaDriver(){
+    public Boolean isJavaDriver() {
         return getDriver().equals("java");
     }
 
-    public Boolean isRawExecDriver(){
+    public Boolean isRawExecDriver() {
         return getDriver().equals("raw_exec");
     }
 
@@ -297,5 +283,18 @@ public class NomadSlaveTemplate implements Describable<NomadSlaveTemplate> {
 
     public String getExtraHosts() {
         return extraHosts;
+    }
+
+    @Extension
+    public static final class DescriptorImpl extends Descriptor<NomadWorkerTemplate> {
+
+        public DescriptorImpl() {
+            load();
+        }
+
+        @Override
+        public String getDisplayName() {
+            return "";
+        }
     }
 }

@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.nomad.Api;
 
+import java.util.Arrays;
 import java.util.List;
 
 public final class Job {
@@ -14,23 +15,22 @@ public final class Job {
     private TaskGroup[] TaskGroups;
 
     public Job(
-        String ID,
-        String name,
-        String region,
-        String type,
-        Integer priority,
-        String[] datacenters,
-        List<Constraint> constraints,
-        TaskGroup[] taskGroups)
-    {
+            String ID,
+            String name,
+            String region,
+            String type,
+            Integer priority,
+            String[] datacenters,
+            List<Constraint> constraints,
+            TaskGroup[] taskGroups) {
         this.ID = ID;
         Name = name;
         Region = region;
         Type = type;
         Priority = priority;
-        Datacenters = datacenters;
+        Datacenters = Arrays.copyOf(datacenters, datacenters.length);
         Constraints = constraints;
-        TaskGroups = taskGroups;
+        TaskGroups = Arrays.copyOf(taskGroups, taskGroups.length);
     }
 
     public String getID() {
@@ -74,19 +74,19 @@ public final class Job {
     }
 
     public String[] getDatacenters() {
-        return Datacenters;
+        return Arrays.copyOf(Datacenters, Datacenters.length);
     }
 
     public void setDatacenters(String[] datacenters) {
-        Datacenters = datacenters;
+        Datacenters = Arrays.copyOf(datacenters, datacenters.length);
     }
 
     public TaskGroup[] getTaskGroups() {
-        return TaskGroups;
+        return Arrays.copyOf(TaskGroups, TaskGroups.length);
     }
 
     public void setTaskGroups(TaskGroup[] taskGroups) {
-        TaskGroups = taskGroups;
+        TaskGroups = Arrays.copyOf(taskGroups, taskGroups.length);
     }
 
     public List<Constraint> getConstraints() {
