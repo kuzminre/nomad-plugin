@@ -14,4 +14,4 @@ hpi:
 .PHONY: all release
 
 .EXPORT_ALL_VARIABLES:
-JAVA_HOME = /Library/Java/JavaVirtualMachines/jdk1.8.0_201.jdk/Contents/Home/
+JAVA_HOME = /Library/Java/JavaVirtualMachines/adoptopenjdk-8.jdk/Contents/Home/
