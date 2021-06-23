@@ -116,7 +116,7 @@ public final class NomadApi {
         if (template.getUsername() != null && !template.getUsername().isEmpty()) {
             Map<String, String> authConfig = new HashMap<>();
             authConfig.put("username", template.getUsername());
-            authConfig.put("password", template.getPassword());
+            authConfig.put("password", template.getPassword().getPlainText());
 
             ArrayList<Map> credentials = new ArrayList<>();
             credentials.add(authConfig);

@@ -7,6 +7,7 @@ import hudson.model.Descriptor;
 import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.labels.LabelAtom;
+import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -39,7 +40,7 @@ public class NomadWorkerTemplate implements Describable<NomadWorkerTemplate> {
     private final Boolean privileged;
     private final String network;
     private final String username;
-    private final String password;
+    private final Secret password;
     private final String prefixCmd;
     private final Boolean forcePull;
     private final String hostVolumes;
@@ -76,7 +77,7 @@ public class NomadWorkerTemplate implements Describable<NomadWorkerTemplate> {
             String image,
             String datacenters,
             String username,
-            String password,
+            Secret password,
             Boolean privileged,
             String network,
             String prefixCmd,
@@ -239,7 +240,7 @@ public class NomadWorkerTemplate implements Describable<NomadWorkerTemplate> {
         return username;
     }
 
-    public String getPassword() {
+    public Secret getPassword() {
         return password;
     }
 
