@@ -37,6 +37,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.level>8</java.level>
         <findbugs.failOnError>false</findbugs.failOnError>
+        <jenkins.version>2.289.1</jenkins.version>
     </properties>
 
     <developers>
