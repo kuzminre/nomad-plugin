@@ -10,7 +10,7 @@
     </parent>
 
     <artifactId>nomad</artifactId>
-    <version>0.8.1-SNAPSHOT</version>
+    <version>${revision}${changelist}</version>
     <packaging>hpi</packaging>
 
     <name>Nomad Plugin</name>
@@ -34,6 +34,8 @@
     </scm>
 
     <properties>
+        <revision>0.8.1</revision>
+        <changelist>-SNAPSHOT</changelist>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.level>8</java.level>
         <findbugs.failOnError>false</findbugs.failOnError>
