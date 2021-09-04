@@ -15,7 +15,7 @@
 
     <name>Nomad Plugin</name>
     <description>Dynamically schedule Jenkins Workers on a Nomad cluster</description>
-    <url>https://wiki.jenkins-ci.org/display/JENKINS/Nomad+Plugin</url>
+    <url>https://github.com/jenkinsci/nomad-plugin</url>
 
     <!-- The default licence for Jenkins OSS Plugins is MIT. Substitute for the applicable one if needed. -->
     <licenses>
@@ -30,7 +30,7 @@
         <developerConnection>scm:git:ssh://git@github.com/jenkinsci/nomad-plugin.git
         </developerConnection>
         <url>https://github.com/jenkinsci/nomad-plugin</url>
-        <tag>v0.7.0</tag>
+        <tag>${scmTag}</tag>
     </scm>
 
     <properties>
