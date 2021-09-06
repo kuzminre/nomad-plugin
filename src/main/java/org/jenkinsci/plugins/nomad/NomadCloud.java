@@ -15,7 +15,7 @@ import hudson.slaves.NodeProvisioner;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
-import jenkins.slaves.JnlpSlaveAgentProtocol;
+import jenkins.slaves.JnlpAgentReceiver;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.ResponseBody;
@@ -398,11 +398,7 @@ public class NomadCloud extends AbstractCloudImpl {
             );
             Jenkins.get().addNode(worker);
 
-            // Support for Jenkins security
-            String jnlpSecret = "";
-            if (Jenkins.get().isUseSecurity()) {
-                jnlpSecret = JnlpSlaveAgentProtocol.SLAVE_SECRET.mac(workerName);
-            }
+            String jnlpSecret = JnlpAgentReceiver.SLAVE_SECRET.mac(workerName);
 
             LOGGER.log(Level.INFO, "Asking Nomad to schedule new Jenkins worker");
             nomad.startWorker(cloud, workerName, getNomadACL(), jnlpSecret, template);
