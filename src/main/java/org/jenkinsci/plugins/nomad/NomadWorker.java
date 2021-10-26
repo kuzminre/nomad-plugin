@@ -1,63 +1,41 @@
 package org.jenkinsci.plugins.nomad;
 
+import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import org.kohsuke.stapler.DataBoundConstructor;
+
 import hudson.Extension;
-import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Node;
 import hudson.model.TaskListener;
-import hudson.slaves.*;
+import hudson.slaves.AbstractCloudComputer;
+import hudson.slaves.AbstractCloudSlave;
+import hudson.slaves.EphemeralNode;
+import hudson.slaves.JNLPLauncher;
 import jenkins.model.Jenkins;
-import org.kohsuke.stapler.DataBoundConstructor;
-
-import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class NomadWorker extends AbstractCloudSlave implements EphemeralNode {
 
     private static final Logger LOGGER = Logger.getLogger(NomadWorker.class.getName());
-    private static final String NODE_DESCRIPTION = "Nomad Jenkins Worker";
-    private final Boolean reusable;
+    private final boolean reusable;
     private final String cloudName;
     private final int idleTerminationInMinutes;
 
-    public NomadWorker(
-            String name,
-            String cloudName,
-            NomadWorkerTemplate template,
-            String labelString,
-            NomadRetentionStrategy retentionStrategy,
-            List<? extends NodeProperty<?>> nodeProperties
-    ) throws Descriptor.FormException, IOException {
-        super(
-                name,
-                NODE_DESCRIPTION,
-                template.getRemoteFs(),
-                template.getNumExecutors(),
-                template.getMode(),
-                labelString,
-                new JNLPLauncher(false),
-                retentionStrategy,
-                nodeProperties
-        );
-
-        this.cloudName = cloudName;
-
-        this.reusable = template.getReusable();
-        this.idleTerminationInMinutes = template.getIdleTerminationInMinutes();
-    }
-
     @DataBoundConstructor
-    // {"name":"jenkins-95266550a531","cloudName":"NomadTest","labelString":"test","mode":"NORMAL","remoteFS":"/","numExecutors":"1","idleTerminationInMinutes":"10","reusable":true}
-    public NomadWorker(String name, String cloudName, String remoteFS, String numExecutors, Mode mode, String labelString, String idleTerminationInMinutes, boolean reusable) throws FormException, IOException {
-        super(name, NODE_DESCRIPTION, remoteFS, numExecutors, mode, labelString, new JNLPLauncher(), new NomadRetentionStrategy(idleTerminationInMinutes), Collections.emptyList());
+    public NomadWorker(String name, String cloudName, String labelString, int numExecutors, int idleTerminationInMinutes,
+            boolean reusable) throws FormException, IOException {
+        super(name, "", new JNLPLauncher(false));
+
+        setLabelString(labelString);
+        setMode(labelString.isEmpty() ? Mode.NORMAL : Mode.EXCLUSIVE);
+        setNumExecutors(numExecutors);
+        setRetentionStrategy(new NomadRetentionStrategy(idleTerminationInMinutes));
 
         this.cloudName = cloudName;
         this.reusable = reusable;
-
-        this.idleTerminationInMinutes = Integer.parseInt(idleTerminationInMinutes);
+        this.idleTerminationInMinutes = idleTerminationInMinutes;
     }
 
     @Override
@@ -84,7 +62,7 @@ public class NomadWorker extends AbstractCloudSlave implements EphemeralNode {
         return cloudName;
     }
 
-    public Boolean getReusable() {
+    public boolean isReusable() {
         return reusable;
     }
 

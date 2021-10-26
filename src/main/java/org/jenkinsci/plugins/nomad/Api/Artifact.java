@@ -2,6 +2,10 @@ package org.jenkinsci.plugins.nomad.Api;
 
 import java.util.Map;
 
+/**
+ * Only required for backward compatibility
+ */
+@Deprecated
 public class Artifact {
 
     private String GetterSource;

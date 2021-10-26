@@ -1,5 +1,9 @@
 package org.jenkinsci.plugins.nomad.Api;
 
+/**
+ * Only required for backward compatibility
+ */
+@Deprecated
 public class Update {
     private Integer Stagger;
     private Integer MaxParallel;

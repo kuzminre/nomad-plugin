@@ -1,155 +1,123 @@
 package org.jenkinsci.plugins.nomad;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import static org.jenkinsci.plugins.nomad.NomadApi.JSON;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+
+import org.apache.commons.io.IOUtils;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.verb.POST;
+
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
-import hudson.model.Label;
 import hudson.model.Node;
 import hudson.model.labels.LabelAtom;
+import hudson.util.FormValidation;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
-import org.apache.commons.lang.StringUtils;
-import org.kohsuke.stapler.DataBoundConstructor;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-import java.util.logging.Logger;
+import okhttp3.Call;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 public class NomadWorkerTemplate implements Describable<NomadWorkerTemplate> {
 
     private static final String SLAVE_PREFIX = "jenkins";
-    private static final Logger LOGGER = Logger.getLogger(NomadWorkerTemplate.class.getName());
 
-    private final int idleTerminationInMinutes;
-    private final Boolean reusable;
-    private final int numExecutors;
-
+    // persistent fields
     private final String prefix;
-    private final int cpu;
-    private final int memory;
-    private final int disk;
-    private final int priority;
+    private final int idleTerminationInMinutes;
+    private final boolean reusable;
+    private final int numExecutors;
     private final String labels;
-    private final List<? extends NomadConstraintTemplate> constraints;
-    private final String region;
-    private final String remoteFs;
-    private final Boolean useRawExec;
-    private final String image;
-    private final Boolean privileged;
-    private final String network;
-    private final String username;
-    private final Secret password;
-    private final String prefixCmd;
-    private final Boolean forcePull;
-    private final String hostVolumes;
-    private final String switchUser;
-    private final Node.Mode mode;
-    private final List<? extends NomadPortTemplate> ports;
-    private final String extraHosts;
-    private final String dnsServers;
-    private final String securityOpt;
-    private final String capAdd;
-    private final String capDrop;
-    private final String datacenters;
-    private final String vaultPolicies;
-    private final Set<LabelAtom> labelSet;
-    private final List<? extends NomadDevicePluginTemplate> devicePlugins;
-    private String driver;
+    private final String jobTemplate;
+
+    // legacy fields (we have to keep them for backward compatibility)
+    @Deprecated
+    private transient String region;
+    @Deprecated
+    private transient int cpu;
+    @Deprecated
+    private transient int memory;
+    @Deprecated
+    private transient int disk;
+    @Deprecated
+    private transient int priority;
+    @Deprecated
+    private transient List<? extends NomadConstraintTemplate> constraints;
+    @Deprecated
+    private transient String remoteFs;
+    @Deprecated
+    private transient Boolean useRawExec;
+    @Deprecated
+    private transient String image;
+    @Deprecated
+    private transient Boolean privileged;
+    @Deprecated
+    private transient String network;
+    @Deprecated
+    private transient String username;
+    @Deprecated
+    private transient Secret password;
+    @Deprecated
+    private transient String prefixCmd;
+    @Deprecated
+    private transient Boolean forcePull;
+    @Deprecated
+    private transient String hostVolumes;
+    @Deprecated
+    private transient String switchUser;
+    @Deprecated
+    private transient Node.Mode mode;
+    @Deprecated
+    private transient List<? extends NomadPortTemplate> ports;
+    @Deprecated
+    private transient String extraHosts;
+    @Deprecated
+    private transient String dnsServers;
+    @Deprecated
+    private transient String securityOpt;
+    @Deprecated
+    private transient String capAdd;
+    @Deprecated
+    private transient String capDrop;
+    @Deprecated
+    private transient String datacenters;
+    @Deprecated
+    private transient String vaultPolicies;
+    @Deprecated
+    private transient Set<LabelAtom> labelSet;
+    @Deprecated
+    private transient List<? extends NomadDevicePluginTemplate> devicePlugins;
+    @Deprecated
+    private transient String driver;
 
     @DataBoundConstructor
     public NomadWorkerTemplate(
             String prefix,
-            String cpu,
-            String memory,
-            String disk,
             String labels,
-            List<? extends NomadConstraintTemplate> constraints,
-            String remoteFs,
-            Boolean useRawExec,
-            String idleTerminationInMinutes,
-            Boolean reusable,
-            String numExecutors,
-            Node.Mode mode,
-            String region,
-            String priority,
-            String image,
-            String datacenters,
-            String username,
-            Secret password,
-            Boolean privileged,
-            String network,
-            String prefixCmd,
-            Boolean forcePull,
-            String hostVolumes,
-            String switchUser,
-            List<? extends NomadPortTemplate> ports,
-            String extraHosts,
-            String dnsServers,
-            String securityOpt,
-            String capAdd,
-            String capDrop,
-            String vaultPolicies,
-            List<? extends NomadDevicePluginTemplate> devicePlugins
+            int idleTerminationInMinutes,
+            boolean reusable,
+            int numExecutors,
+            String jobTemplate
     ) {
-        if (StringUtils.isNotEmpty(prefix))
-            this.prefix = prefix;
-        else
-            this.prefix = SLAVE_PREFIX;
-
-        this.cpu = Integer.parseInt(cpu);
-        this.memory = Integer.parseInt(memory);
-        this.disk = Integer.parseInt(disk);
-        this.priority = Integer.parseInt(priority);
-        this.idleTerminationInMinutes = Integer.parseInt(idleTerminationInMinutes);
+        this.prefix = prefix.isEmpty() ? SLAVE_PREFIX : prefix;
+        this.idleTerminationInMinutes = idleTerminationInMinutes;
         this.reusable = reusable;
-        this.numExecutors = Integer.parseInt(numExecutors);
-        this.mode = mode;
-        this.remoteFs = remoteFs;
-        this.useRawExec = useRawExec;
+        this.numExecutors = numExecutors;
         this.labels = Util.fixNull(labels);
-        if (constraints == null) {
-            this.constraints = Collections.emptyList();
-        } else {
-            this.constraints = constraints;
-        }
-        this.labelSet = Label.parse(labels);
-        this.region = region;
-        this.image = image;
-        this.datacenters = datacenters;
-        this.vaultPolicies = Util.fixNull(vaultPolicies);
-        this.username = username;
-        this.password = password;
-        this.privileged = privileged;
-        this.network = network;
-        this.prefixCmd = prefixCmd;
-        this.switchUser = switchUser;
-        this.forcePull = forcePull;
-        this.hostVolumes = hostVolumes;
-        if (ports == null) {
-            this.ports = Collections.emptyList();
-        } else {
-            this.ports = ports;
-        }
-        this.extraHosts = extraHosts;
-        this.dnsServers = dnsServers;
-        this.securityOpt = securityOpt;
-        this.capAdd = capAdd;
-        this.capDrop = capDrop;
-        if (devicePlugins == null) {
-            this.devicePlugins = Collections.emptyList();
-        } else {
-            this.devicePlugins = devicePlugins;
-        }
-
-        readResolve();
-    }
-
-    protected Object readResolve() {
-        this.driver = !this.image.equals("") ? "docker" : "java";
-        if (this.useRawExec) this.driver = "raw_exec";
-        return this;
+        this.jobTemplate = jobTemplate;
     }
 
     @Override
@@ -159,160 +127,44 @@ public class NomadWorkerTemplate implements Describable<NomadWorkerTemplate> {
     }
 
     public String createWorkerName() {
-        return getPrefix() + "-" + Long.toHexString(System.nanoTime());
-    }
-
-    public Set<LabelAtom> getLabelSet() {
-        return labelSet;
-    }
-
-    public int getNumExecutors() {
-        return numExecutors;
-    }
-
-    public Node.Mode getMode() {
-        return mode;
+        return prefix + "-" + Long.toHexString(System.nanoTime());
     }
 
     public String getPrefix() {
-        if (StringUtils.isNotEmpty(prefix))
-            return prefix;
-        return SLAVE_PREFIX;
-    }
-
-    public int getCpu() {
-        return cpu;
-    }
-
-    public int getMemory() {
-        return memory;
-    }
-
-    public String getLabels() {
-        return labels;
-    }
-
-    public List<NomadConstraintTemplate> getConstraints() {
-        return Collections.unmodifiableList(constraints);
+        return prefix;
     }
 
     public int getIdleTerminationInMinutes() {
         return idleTerminationInMinutes;
     }
 
-    public Boolean getReusable() {
+    public boolean isReusable() {
         return reusable;
     }
 
-    public String getRegion() {
-        return region;
+    public int getNumExecutors() {
+        return numExecutors;
     }
 
-    public String getDatacenters() {
-        return datacenters;
+    public String getLabels() {
+        return labels;
     }
 
-    public String getVaultPolicies() {
-        return vaultPolicies;
-    }
-
-    public int getPriority() {
-        return priority;
-    }
-
-    public int getDisk() {
-        return disk;
-    }
-
-    public String getRemoteFs() {
-        return remoteFs;
-    }
-
-    public Boolean useRawExec() {
-        return useRawExec;
-    }
-
-    public String getImage() {
-        return image;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public Secret getPassword() {
-        return password;
-    }
-
-    public String getPrefixCmd() {
-        return prefixCmd;
-    }
-
-    public String getSwitchUser() {
-        return switchUser;
-    }
-
-    public String getDriver() {
-        return driver;
-    }
-
-    public Boolean isDockerDriver() {
-        return getDriver().equals("docker");
-    }
-
-    public Boolean isJavaDriver() {
-        return getDriver().equals("java");
-    }
-
-    public Boolean isRawExecDriver() {
-        return getDriver().equals("raw_exec");
-    }
-
-    public Boolean getPrivileged() {
-        return privileged;
-    }
-
-    public String getNetwork() {
-        return network;
-    }
-
-    public Boolean getForcePull() {
-        return forcePull;
-    }
-
-    public String getHostVolumes() {
-        return hostVolumes;
-    }
-
-    public List<? extends NomadPortTemplate> getPorts() {
-        return Collections.unmodifiableList(ports);
-    }
-
-    public String getSecurityOpt() {
-        return securityOpt;
-    }
-
-    public String getCapAdd() {
-        return capAdd;
-    }
-
-    public String getCapDrop() {
-        return capDrop;
-    }
-
-    public String getExtraHosts() {
-        return extraHosts;
-    }
-
-
-    public String getDnsServers() { return dnsServers; }
-
-    public List<NomadDevicePluginTemplate> getDevicePlugins() {
-        return Collections.unmodifiableList(devicePlugins);
+    public String getJobTemplate() {
+        return jobTemplate;
     }
 
     @Extension
     public static final class DescriptorImpl extends Descriptor<NomadWorkerTemplate> {
+        public static final String defaultJobTemplate = loadDefaultJobTemplate();
+
+        private static String loadDefaultJobTemplate() {
+            try {
+                return IOUtils.toString(DescriptorImpl.class.getResource("/org/jenkinsci/plugins/nomad/jobTemplate.json"), UTF_8);
+            } catch (IOException e) {
+                throw new IllegalStateException(e);
+            }
+        }
 
         public DescriptorImpl() {
             load();
@@ -321,6 +173,43 @@ public class NomadWorkerTemplate implements Describable<NomadWorkerTemplate> {
         @Override
         public String getDisplayName() {
             return "";
+        }
+
+        @POST
+        public FormValidation doValidation(
+                @QueryParameter String nomadUrl,
+                @QueryParameter boolean tlsEnabled,
+                @QueryParameter String clientCertificate,
+                @QueryParameter String clientPassword,
+                @QueryParameter String serverCertificate,
+                @QueryParameter String serverPassword,
+                @QueryParameter String jobTemplate) {
+            Objects.requireNonNull(Jenkins.get()).checkPermission(Jenkins.ADMINISTER);
+
+            try {
+                String id = UUID.randomUUID().toString();
+                Request request = new Request.Builder()
+                        .url(nomadUrl + "/v1/job/"+id+"/plan")
+                        .put(RequestBody.create(jobTemplate.replace("%WORKER_NAME%", id), JSON))
+                        .build();
+
+                OkHttpClient.Builder clientBuilder = new OkHttpClient.Builder();
+                if (tlsEnabled) {
+                    OkHttpClientHelper.initTLS(clientBuilder, clientCertificate, clientPassword, serverCertificate, serverPassword);
+                }
+
+                Call call = clientBuilder.build().newCall(request);
+                try (Response response = call.execute()) {
+                    if (response.isSuccessful()) {
+                        return FormValidation.ok("OK");
+                    }
+                    try (ResponseBody body = response.body()) {
+                        return FormValidation.error(body != null ? body.string() : response.toString());
+                    }
+                }
+            } catch (Exception e) {
+                return FormValidation.error(e.getMessage());
+            }
         }
     }
 }

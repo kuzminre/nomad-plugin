@@ -16,6 +16,10 @@ import java.util.logging.Logger;
 import static java.util.logging.Logger.getLogger;
 
 /**
+ * Only required for backward compatibility
+ */
+@Deprecated
+/**
  * Idea picked from yet-another-docker-pluign @kostyasha
  *
  * @author antweiss

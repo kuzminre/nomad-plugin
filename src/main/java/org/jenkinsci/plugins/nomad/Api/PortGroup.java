@@ -5,6 +5,10 @@ import org.jenkinsci.plugins.nomad.NomadPortTemplate;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Only required for backward compatibility
+ */
+@Deprecated
 public class PortGroup {
 
     private final List<Port> ports = new ArrayList<>();

@@ -6,6 +6,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+/**
+ * Only required for backward compatibility
+ */
+@Deprecated
 public class ConstraintGroup {
     private final List<Constraint> constraints = new ArrayList<Constraint>();
 

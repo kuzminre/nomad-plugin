@@ -3,6 +3,10 @@ package org.jenkinsci.plugins.nomad.Api;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Only required for backward compatibility
+ */
+@Deprecated
 public final class Job {
 
     private String ID;

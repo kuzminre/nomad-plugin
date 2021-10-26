@@ -1,9 +1,12 @@
 package org.jenkinsci.plugins.nomad.Api;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
+/**
+ * Only required for backward compatibility
+ */
+@Deprecated
 public final class Vault {
 
     private List<String> Policies;

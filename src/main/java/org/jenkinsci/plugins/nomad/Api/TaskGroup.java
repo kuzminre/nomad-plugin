@@ -2,6 +2,10 @@ package org.jenkinsci.plugins.nomad.Api;
 
 import java.util.Arrays;
 
+/**
+ * Only required for backward compatibility
+ */
+@Deprecated
 public class TaskGroup {
     private String Name;
     private Integer Count;

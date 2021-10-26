@@ -1,0 +1,68 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<org.jenkinsci.plugins.nomad.NomadCloud plugin="nomad@0.7.4">
+  <name>nomad</name>
+  <instanceCap>2147483647</instanceCap>
+  <templates>
+    <org.jenkinsci.plugins.nomad.NomadWorkerTemplate>
+      <idleTerminationInMinutes>10</idleTerminationInMinutes>
+      <reusable>true</reusable>
+      <numExecutors>1</numExecutors>
+      <prefix>jenkins</prefix>
+      <cpu>6000</cpu>
+      <memory>1024</memory>
+      <disk>300</disk>
+      <priority>50</priority>
+      <labels>nomad</labels>
+      <constraints>
+        <org.jenkinsci.plugins.nomad.NomadConstraintTemplate>
+          <ltarget>${attr.vault.version}</ltarget>
+          <operand>semver</operand>
+          <rtarget>&gt;= 0.6.1</rtarget>
+        </org.jenkinsci.plugins.nomad.NomadConstraintTemplate>
+      </constraints>
+      <region>global</region>
+      <remoteFs>/workspace</remoteFs>
+      <useRawExec>false</useRawExec>
+      <image>registry/image:version</image>
+      <privileged>false</privileged>
+      <network>bridge</network>
+      <username>bla</username>
+      <password>foo</password>
+      <prefixCmd>sleep 5</prefixCmd>
+      <forcePull>true</forcePull>
+      <hostVolumes>/hostDir:/localDir:ro</hostVolumes>
+      <switchUser>alice</switchUser>
+      <ports>
+        <org.jenkinsci.plugins.nomad.NomadPortTemplate>
+          <label>web</label>
+          <value>8080</value>
+        </org.jenkinsci.plugins.nomad.NomadPortTemplate>
+      </ports>
+      <extraHosts>my_host:192.168.1.1</extraHosts>
+      <dnsServers>8.8.8.8,1.1.1.1</dnsServers>
+      <securityOpt>apparmor=unconfined, seccomp=unconfined</securityOpt>
+      <capAdd>net_raw, sys_time</capAdd>
+      <capDrop>mknod</capDrop>
+      <datacenters>dc1</datacenters>
+      <vaultPolicies>policy1,policy2</vaultPolicies>
+      <labelSet class="sorted-set">
+        <hudson.model.labels.LabelAtom>nomad</hudson.model.labels.LabelAtom>
+      </labelSet>
+      <devicePlugins>
+        <org.jenkinsci.plugins.nomad.NomadDevicePluginTemplate>
+          <name>nvidia/gpu</name>
+          <count>1</count>
+        </org.jenkinsci.plugins.nomad.NomadDevicePluginTemplate>
+      </devicePlugins>
+    </org.jenkinsci.plugins.nomad.NomadWorkerTemplate>
+  </templates>
+  <nomadUrl>http://nomad:4646</nomadUrl>
+  <nomadACLCredentialsId>2126ffe9-4309-476f-8987-7432273ad701-120622acc1b30</nomadACLCredentialsId>
+  <prune>false</prune>
+  <jenkinsTunnel>jenkins-tunnel:50000</jenkinsTunnel>
+  <workerTimeout>1</workerTimeout>
+  <nomad>
+    <nomadApi>http://nomad:4646</nomadApi>
+  </nomad>
+  <pending>0</pending>
+</org.jenkinsci.plugins.nomad.NomadCloud>

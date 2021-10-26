@@ -2,6 +2,10 @@ package org.jenkinsci.plugins.nomad.Api;
 
 import java.util.List;
 
+/**
+ * Only required for backward compatibility
+ */
+@Deprecated
 public class Network {
 
     private Integer MBits;

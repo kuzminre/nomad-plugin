@@ -1,5 +1,9 @@
 package org.jenkinsci.plugins.nomad.Api;
 
+/**
+ * Only required for backward compatibility
+ */
+@Deprecated
 public class LogConfig {
     private Integer MaxFiles;
     private Integer MaxFileSizeMB;

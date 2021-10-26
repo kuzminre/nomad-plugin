@@ -4,6 +4,10 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.List;
 
+/**
+ * Only required for backward compatibility
+ */
+@Deprecated
 public class Task {
     private String Name;
     private String Driver;

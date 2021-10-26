@@ -1,56 +1,134 @@
 package org.jenkinsci.plugins.nomad;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+
 import hudson.model.labels.LabelAtom;
 import hudson.slaves.NodeProvisioner;
-import org.junit.Assert;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.mockito.Mockito;
+import org.jvnet.hudson.test.JenkinsRule;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Set;
 import java.util.UUID;
 
 public class NomadCloudTest {
 
-    private final NomadWorkerTemplate workerTemplate = Mockito.mock(NomadWorkerTemplate.class);
-    private final LabelAtom label = new LabelAtom(UUID.randomUUID().toString());
-    private final NomadCloud nomadCloud = new NomadCloud(
-            "nomad",
-            "nomadUrl",
-            false,
-            null,
-            null,
-            null,
-            null,
-            "jenkinsUrl",
-            "jenkinsTunnel",
-            "workerUrl",
-            "1",
-            "",
-            false,
-            Collections.singletonList(workerTemplate));
-
-    @Before
-    public void setup() {
-        Set<LabelAtom> labels = Collections.singleton(label);
-        Mockito.when(workerTemplate.createWorkerName()).thenReturn("worker-1", "worker-2", "worker-3");
-        Mockito.when(workerTemplate.getNumExecutors()).thenReturn(1);
-        Mockito.when(workerTemplate.getLabelSet()).thenReturn(labels);
-    }
+    @Rule
+    public JenkinsRule r = new JenkinsRule();
 
     @Test
     public void testCanProvision() {
-        Assert.assertTrue(nomadCloud.canProvision(label));
+        // GIVEN
+        LabelAtom label = createLabel();
+        NomadWorkerTemplate template = createTemplate(label.getName());
+        NomadCloud cloud = createCloud(template);
+
+        // WHEN
+        boolean result = cloud.canProvision(label);
+
+        // THEN
+        assertThat(result, is(true));
     }
 
     @Test
     public void testProvision() {
-        int workload = 3;
-        Collection<NodeProvisioner.PlannedNode> plannedNodes = nomadCloud.provision(label, workload);
+        // GIVEN
+        LabelAtom label = createLabel();
+        NomadWorkerTemplate template = createTemplate(label.getName());
+        NomadCloud cloud = createCloud(template);
 
-        Assert.assertEquals(plannedNodes.size(), workload);
+        // WHEN
+        Collection<NodeProvisioner.PlannedNode> result = cloud.provision(label, 3);
+
+        // THEN
+        assertThat(result.size(), is(3));
+    }
+
+    @Test
+    public void testGetTemplateWithLabels() {
+        // GIVEN
+        LabelAtom label = createLabel();
+        NomadWorkerTemplate template = createTemplate(label.getName());
+        NomadCloud cloud = createCloud(template);
+        
+        // WHEN
+        NomadWorkerTemplate result = cloud.getTemplate(label);
+
+        // THEN
+        assertThat(result, is(template));
+    }
+
+    @Test
+    public void testGetTemplateWithLabelsNull() {
+        // GIVEN
+        LabelAtom label = createLabel();
+        NomadWorkerTemplate template = createTemplate(null);
+        NomadCloud cloud = createCloud(template);
+        
+        // WHEN
+        NomadWorkerTemplate result = cloud.getTemplate(label);
+
+        // THEN
+        assertThat(result, nullValue());
+    }
+
+    @Test
+    public void testGetTemplateWithLabelsEmpty() {
+        // GIVEN
+        LabelAtom label = createLabel();
+        NomadWorkerTemplate template = createTemplate("");
+        NomadCloud cloud = createCloud(template);
+
+        // WHEN
+        NomadWorkerTemplate result = cloud.getTemplate(label);
+
+        // THEN
+        assertThat(result, nullValue());
+    }
+
+    @Test
+    public void testGetTemplateWithLabelNull() {
+        // GIVEN
+        LabelAtom label = createLabel();
+        NomadWorkerTemplate template = createTemplate(null);
+        NomadCloud cloud = createCloud(template);
+
+        // WHEN
+        NomadWorkerTemplate result = cloud.getTemplate(null);
+
+        // THEN
+        assertThat(result, is(result));
+    }
+
+    private NomadCloud createCloud(NomadWorkerTemplate template) {
+        return new NomadCloud(
+                "nomad",
+                "nomadUrl",
+                false,
+                null,
+                null,
+                null,
+                null,
+                1,
+                "",
+                false,
+                Collections.singletonList(template));
+    }
+
+    private NomadWorkerTemplate createTemplate(String labels) {
+        return new NomadWorkerTemplate(
+                "jenkins",
+                labels,
+                1,
+                true,
+                1,
+                NomadWorkerTemplate.DescriptorImpl.defaultJobTemplate);
+    }
+
+    private LabelAtom createLabel() {
+        return new LabelAtom(UUID.randomUUID().toString());
     }
 
 }

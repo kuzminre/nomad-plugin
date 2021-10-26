@@ -6,6 +6,10 @@ import hudson.model.Descriptor;
 import jenkins.model.Jenkins;
 import org.kohsuke.stapler.DataBoundConstructor;
 
+/**
+ * Only required for backward compatibility
+ */
+@Deprecated
 public class NomadConstraintTemplate implements Describable<NomadConstraintTemplate> {
 
     private final String ltarget;

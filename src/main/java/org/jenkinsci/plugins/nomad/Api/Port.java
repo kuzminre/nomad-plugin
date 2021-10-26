@@ -2,6 +2,10 @@ package org.jenkinsci.plugins.nomad.Api;
 
 import org.jenkinsci.plugins.nomad.NomadPortTemplate;
 
+/**
+ * Only required for backward compatibility
+ */
+@Deprecated
 public class Port {
 
     private String Label;

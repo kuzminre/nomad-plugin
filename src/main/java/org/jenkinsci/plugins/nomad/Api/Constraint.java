@@ -2,6 +2,10 @@ package org.jenkinsci.plugins.nomad.Api;
 
 import org.jenkinsci.plugins.nomad.NomadConstraintTemplate;
 
+/**
+ * Only required for backward compatibility
+ */
+@Deprecated
 public class Constraint {
     private String LTarget;
     private String Operand;

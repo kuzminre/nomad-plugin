@@ -2,6 +2,10 @@ package org.jenkinsci.plugins.nomad.Api;
 
 import org.jenkinsci.plugins.nomad.NomadDevicePluginTemplate;
 
+/**
+ * Only required for backward compatibility
+ */
+@Deprecated
 public class Device {
     private String Name;
     private Integer Count;

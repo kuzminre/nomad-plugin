@@ -1,0 +1,109 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<org.jenkinsci.plugins.nomad.NomadCloud>
+  <name>nomad</name>
+  <instanceCap>2147483647</instanceCap>
+  <nomadUrl>http://nomad:4646</nomadUrl>
+  <nomadACLCredentialsId>2126ffe9-4309-476f-8987-7432273ad701-120622acc1b30</nomadACLCredentialsId>
+  <prune>false</prune>
+  <workerTimeout>1</workerTimeout>
+  <templates>
+    <org.jenkinsci.plugins.nomad.NomadWorkerTemplate>
+      <prefix>jenkins</prefix>
+      <idleTerminationInMinutes>10</idleTerminationInMinutes>
+      <reusable>true</reusable>
+      <numExecutors>1</numExecutors>
+      <labels>nomad</labels>
+      <jobTemplate>{
+  &quot;Job&quot;: {
+    &quot;ID&quot;: &quot;%WORKER_NAME%&quot;,
+    &quot;Name&quot;: &quot;%WORKER_NAME%&quot;,
+    &quot;Region&quot;: &quot;global&quot;,
+    &quot;Type&quot;: &quot;batch&quot;,
+    &quot;Priority&quot;: 50,
+    &quot;Datacenters&quot;: [
+      &quot;dc1&quot;
+    ],
+    &quot;Constraints&quot;: [
+      {
+        &quot;LTarget&quot;: &quot;${attr.vault.version}&quot;,
+        &quot;Operand&quot;: &quot;semver&quot;,
+        &quot;RTarget&quot;: &quot;&gt;= 0.6.1&quot;
+      }
+    ],
+    &quot;TaskGroups&quot;: [
+      {
+        &quot;Name&quot;: &quot;jenkins-worker-taskgroup&quot;,
+        &quot;Count&quot;: 1,
+        &quot;Tasks&quot;: [
+          {
+            &quot;Name&quot;: &quot;jenkins-worker&quot;,
+            &quot;Driver&quot;: &quot;raw_exec&quot;,
+            &quot;User&quot;: &quot;alice&quot;,
+            &quot;Config&quot;: {
+              &quot;args&quot;: [
+                &quot;-jar&quot;,
+                &quot;./local/slave.jar&quot;,
+                &quot;-jnlpUrl&quot;,
+                &quot;http://jenkins:8080/computer/%WORKER_NAME%/worker-agent.jnlp&quot;,
+                &quot;-secret&quot;,
+                &quot;%WORKER_SECRET%&quot;
+              ],
+              &quot;command&quot;: &quot;java&quot;
+            },
+            &quot;Resources&quot;: {
+              &quot;CPU&quot;: 6000,
+              &quot;MemoryMB&quot;: 1024,
+              &quot;Networks&quot;: [
+                {
+                  &quot;MBits&quot;: 1,
+                  &quot;ReservedPorts&quot;: [
+                    {
+                      &quot;Label&quot;: &quot;web&quot;,
+                      &quot;Value&quot;: 8080
+                    }
+                  ]
+                }
+              ],
+              &quot;Devices&quot;: [
+                {
+                  &quot;Name&quot;: &quot;nvidia/gpu&quot;,
+                  &quot;Count&quot;: 1
+                }
+              ]
+            },
+            &quot;LogConfig&quot;: {
+              &quot;MaxFiles&quot;: 1,
+              &quot;MaxFileSizeMB&quot;: 10
+            },
+            &quot;Artifacts&quot;: [
+              {
+                &quot;GetterSource&quot;: &quot;http://jenkins:8080/jnlpJars/slave.jar&quot;,
+                &quot;RelativeDest&quot;: &quot;/local/&quot;
+              }
+            ],
+            &quot;Vault&quot;: {
+              &quot;Policies&quot;: [
+                &quot;policy1&quot;,
+                &quot;policy2&quot;
+              ]
+            }
+          }
+        ],
+        &quot;RestartPolicy&quot;: {
+          &quot;Interval&quot;: 10000000000,
+          &quot;Mode&quot;: &quot;fail&quot;,
+          &quot;Delay&quot;: 1000000000,
+          &quot;Attempts&quot;: 0
+        },
+        &quot;EphemeralDisk&quot;: {
+          &quot;SizeMB&quot;: 300,
+          &quot;Migrate&quot;: false,
+          &quot;Sticky&quot;: false
+        }
+      }
+    ]
+  }
+}</jobTemplate>
+    </org.jenkinsci.plugins.nomad.NomadWorkerTemplate>
+  </templates>
+</org.jenkinsci.plugins.nomad.NomadCloud>
