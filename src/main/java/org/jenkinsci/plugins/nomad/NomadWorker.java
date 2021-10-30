@@ -25,8 +25,8 @@ public class NomadWorker extends AbstractCloudSlave implements EphemeralNode {
 
     @DataBoundConstructor
     public NomadWorker(String name, String cloudName, String labelString, int numExecutors, int idleTerminationInMinutes,
-            boolean reusable) throws FormException, IOException {
-        super(name, "", new JNLPLauncher(false));
+            boolean reusable, String remoteFS) throws FormException, IOException {
+        super(name, remoteFS, new JNLPLauncher(false));
 
         setLabelString(labelString);
         setMode(labelString.isEmpty() ? Mode.NORMAL : Mode.EXCLUSIVE);

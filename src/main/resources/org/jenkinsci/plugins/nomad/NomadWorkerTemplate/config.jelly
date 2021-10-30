@@ -24,6 +24,10 @@
             <f:number default="1" />
         </f:entry>
 
+        <f:entry title="Workspace root" field="remoteFs">
+            <f:textbox/>
+        </f:entry>
+
         <f:entry title="Job Template" field="jobTemplate">
             <f:textarea default="${descriptor.defaultJobTemplate}" />
         </f:entry>

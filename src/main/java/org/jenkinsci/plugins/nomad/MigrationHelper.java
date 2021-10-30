@@ -58,6 +58,7 @@ public class MigrationHelper {
 
         cloud.getTemplates().forEach(template -> {
             migrateDriver(template);
+            migrateRemoteFS(template);
             migrateJobTemplate(template, jenkinsUrl, jenkinsTunnel, workerUrl);
         });
     }
@@ -76,6 +77,17 @@ public class MigrationHelper {
 
         if (StringUtils.isEmpty(jenkinsUrl)) {
             migrateField(cloud, "jenkinsUrl", Jenkins.get().getRootUrl());
+        }
+    }
+
+    /**
+     * migrate templates created with v0.9.0
+     */
+    private static void migrateRemoteFS(NomadWorkerTemplate template) {
+        String remoteFS = getFieldValue(template, "remoteFs");
+
+        if (remoteFS == null) {
+            migrateField(template, "remoteFs", "");
         }
     }
 

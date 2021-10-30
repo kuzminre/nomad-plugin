@@ -107,7 +107,7 @@ public final class NomadApi {
         String workerJob = buildWorkerJob(
                 workerName,
                 jnlpSecret,
-                template.getJobTemplate()
+                template
         );
 
         LOGGER.log(Level.FINE, workerJob);
@@ -159,11 +159,12 @@ public final class NomadApi {
     String buildWorkerJob(
             String name,
             String secret,
-            String jobTemplate
+            NomadWorkerTemplate template
     ) {
-        return jobTemplate
+        return template.getJobTemplate()
                 .replace("%WORKER_NAME%", name)
                 .replace("%WORKER_SECRET%", secret)
+                .replace("%WORKER_DIR%", template.getRemoteFs())
                 ;
     }
 

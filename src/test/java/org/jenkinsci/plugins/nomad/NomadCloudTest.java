@@ -124,6 +124,7 @@ public class NomadCloudTest {
                 1,
                 true,
                 1,
+                null,
                 NomadWorkerTemplate.DescriptorImpl.defaultJobTemplate);
     }
 

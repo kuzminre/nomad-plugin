@@ -42,6 +42,7 @@ public class NomadWorkerTemplate implements Describable<NomadWorkerTemplate> {
     private final int numExecutors;
     private final String labels;
     private final String jobTemplate;
+    private final String remoteFs;
 
     // legacy fields (we have to keep them for backward compatibility)
     @Deprecated
@@ -56,8 +57,6 @@ public class NomadWorkerTemplate implements Describable<NomadWorkerTemplate> {
     private transient int priority;
     @Deprecated
     private transient List<? extends NomadConstraintTemplate> constraints;
-    @Deprecated
-    private transient String remoteFs;
     @Deprecated
     private transient Boolean useRawExec;
     @Deprecated
@@ -110,6 +109,7 @@ public class NomadWorkerTemplate implements Describable<NomadWorkerTemplate> {
             int idleTerminationInMinutes,
             boolean reusable,
             int numExecutors,
+            String remoteFs,
             String jobTemplate
     ) {
         this.prefix = prefix.isEmpty() ? SLAVE_PREFIX : prefix;
@@ -117,6 +117,7 @@ public class NomadWorkerTemplate implements Describable<NomadWorkerTemplate> {
         this.reusable = reusable;
         this.numExecutors = numExecutors;
         this.labels = Util.fixNull(labels);
+        this.remoteFs = Util.fixNull(remoteFs);
         this.jobTemplate = jobTemplate;
     }
 
@@ -148,6 +149,10 @@ public class NomadWorkerTemplate implements Describable<NomadWorkerTemplate> {
 
     public String getLabels() {
         return labels;
+    }
+
+    public String getRemoteFs() {
+        return remoteFs;
     }
 
     public String getJobTemplate() {

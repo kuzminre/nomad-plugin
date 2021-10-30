@@ -40,7 +40,7 @@ public class NomadCloudConfigurationTest {
     @Parameterized.Parameters(name = "path: {0}")
     public static Iterable<String> data() {
         List<String> data = new LinkedList<>();
-        for (String version : Arrays.asList("0.x.y", "0.7.4", "0.8.0")) {
+        for (String version : Arrays.asList("0.x.y", "0.7.4", "0.9.0")) {
             for (String type : Arrays.asList("java", "docker", "raw_exec")) {
                 data.add("/config/"+version+"/"+type+".xml");
             }
@@ -65,7 +65,7 @@ public class NomadCloudConfigurationTest {
         String secret = UUID.randomUUID().toString();
 
         // WHEN
-        String job = nomadApi.buildWorkerJob(workerName, secret, template.getJobTemplate());
+        String job = nomadApi.buildWorkerJob(workerName, secret, template);
 
         // THEN
         assertThat(job, hasJsonPath("$.Job.ID", is(workerName)));
@@ -167,7 +167,7 @@ public class NomadCloudConfigurationTest {
     }
 
     private static String createJenkinsUrl(NomadCloud nomadCloud, String path) throws IllegalAccessException, NoSuchFieldException {
-        if (path.startsWith("/config/0.8.0/")) {
+        if (path.startsWith("/config/0.9.0/")) {
             return "http://jenkins:8080";
         }
 

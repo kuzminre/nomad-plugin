@@ -324,7 +324,8 @@ public class NomadCloud extends AbstractCloudImpl {
                     template.getLabels(),
                     template.getNumExecutors(),
                     template.getIdleTerminationInMinutes(),
-                    template.isReusable()
+                    template.isReusable(),
+                    template.getRemoteFs()
             );
             Jenkins.get().addNode(worker);
 
