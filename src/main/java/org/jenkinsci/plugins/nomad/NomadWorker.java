@@ -51,7 +51,7 @@ public class NomadWorker extends AbstractCloudSlave implements EphemeralNode {
     @Override
     protected void _terminate(TaskListener listener) {
         LOGGER.log(Level.INFO, "Asking Nomad to deregister worker '" + getNodeName() + "'");
-        getCloud().nomad().stopWorker(getNodeName(), getCloud().getNomadACL());
+        getCloud().nomad().stopWorker(getNodeName());
     }
 
     public NomadCloud getCloud() {

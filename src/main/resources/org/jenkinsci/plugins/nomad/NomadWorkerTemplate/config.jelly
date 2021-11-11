@@ -32,7 +32,7 @@
             <f:textarea default="${descriptor.defaultJobTemplate}" />
         </f:entry>
         <f:validateButton title="Validate" progress="Validating job file..." method="validation"
-                          with="nomadUrl,tlsEnabled,clientCertificate,clientPassword,serverCertificate,serverPassword,jobTemplate"/>
+                          with="nomadUrl,tlsEnabled,clientCertificate,clientPassword,serverCertificate,serverPassword,nomadACLCredentialsId,jobTemplate"/>
 
         <f:entry title="">
             <div align="right">

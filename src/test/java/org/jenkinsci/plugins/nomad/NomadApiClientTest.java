@@ -1,18 +1,19 @@
 package org.jenkinsci.plugins.nomad;
 
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.emptyString;
 import static org.hamcrest.Matchers.is;
+import static org.mockito.Mockito.when;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.ok;
-import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
-
-import static okhttp3.RequestBody.create;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -29,11 +30,11 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 
-import okhttp3.MediaType;
-import okhttp3.Request;
+import hudson.util.FormValidation;
 
 /**
- * Checks that the NomadApi is working as expected especially the client and checkResponseAndGetBody method.
+ * Checks that the NomadApi is working as expected especially how the client behaves when the Nomad is not available or the configuration
+ * is correct.
  */
 @RunWith(MockitoJUnitRunner.class)
 public class NomadApiClientTest {
@@ -87,95 +88,85 @@ public class NomadApiClientTest {
     }
 
     @Test
-    public void testGET() {
+    public void testCheckConnectionSuccessful() {
         // GIVEN
-        stubFor(get(urlEqualTo("/some/thing"))
-                .willReturn(ok("Hello Nomad!")));
+        stubFor(get(urlEqualTo("/v1/agent/self"))
+                .willReturn(ok("{}")));
+        when(nomadCloud.getNomadUrl()).thenReturn(wireMockRule.baseUrl());
 
         // WHEN
-        Request request = new Request.Builder().url(wireMockRule.url("/some/thing")).build();
-        String response = nomadApi.checkResponseAndGetBody(request);
+        FormValidation response = nomadApi.checkConnection();
 
         // THEN
-        assertThat(response, is("Hello Nomad!"));
+        assertThat(response.kind, is(FormValidation.Kind.OK));
+        assertThat(response.getMessage(), is("Nomad API request succeeded."));
         assertThat(getFieldValue(nomadApi, "client"), notNullValue());
     }
 
     @Test
-    public void testGETWithoutResponseMessage() {
+    public void testCheckConnectionUnauthorized() {
         // GIVEN
-        stubFor(get(urlEqualTo("/some/thing"))
-                .willReturn(ok()));
-
-        // WHEN
-        Request request = new Request.Builder().url(wireMockRule.url("/some/thing")).build();
-        String response = nomadApi.checkResponseAndGetBody(request);
-
-        // THEN
-        assertThat(response, notNullValue());
-        assertThat(getFieldValue(nomadApi, "client"), notNullValue());
-    }
-
-    @Test
-    public void testGET401() {
-        // GIVEN
-        stubFor(get(urlEqualTo("/some/thing"))
+        stubFor(get(urlEqualTo("/v1/agent/self"))
                 .willReturn(aResponse()
                         .withStatus(401)));
+        when(nomadCloud.getNomadUrl()).thenReturn(wireMockRule.baseUrl());
 
         // WHEN
-        Request request = new Request.Builder().url(wireMockRule.url("/some/thing")).build();
-        String response = nomadApi.checkResponseAndGetBody(request);
+        FormValidation response = nomadApi.checkConnection();
 
         // THEN
-        assertThat(response, notNullValue());
+        assertThat(response.kind, is(FormValidation.Kind.ERROR));
+        assertThat(response.getMessage(), startsWith("Response{protocol=http/1.1, code=401, message=Unauthorized"));
         assertThat(getFieldValue(nomadApi, "client"), nullValue());
     }
 
     @Test
-    public void testGETUnknownHost() {
-        // WHEN
-        Request request = new Request.Builder().url("http://"+ UUID.randomUUID()).build();
-        String response = nomadApi.checkResponseAndGetBody(request);
-
-        // THEN
-        assertThat(response, notNullValue());
-        assertThat(getFieldValue(nomadApi, "client"), nullValue());
-    }
-
-    @Test
-    public void testGETUnknownResource() {
+    public void testCheckConnectionForbidden() {
         // GIVEN
-        stubFor(get(urlEqualTo("/some/thing"))
+        stubFor(get(urlEqualTo("/v1/agent/self"))
+                .willReturn(aResponse()
+                        .withStatus(403)));
+        when(nomadCloud.getNomadUrl()).thenReturn(wireMockRule.baseUrl());
+
+        // WHEN
+        FormValidation response = nomadApi.checkConnection();
+
+        // THEN
+        assertThat(response.kind, is(FormValidation.Kind.ERROR));
+        assertThat(response.getMessage(), startsWith("Response{protocol=http/1.1, code=403, message=Forbidden"));
+        assertThat(getFieldValue(nomadApi, "client"), nullValue());
+    }
+
+    @Test
+    public void testCheckConnectionNotFound() {
+        // GIVEN
+        stubFor(get(urlEqualTo("/v1/agent/self"))
                 .willReturn(aResponse()
                         .withHeader("Content-Length", "0")
                         .withStatus(404)));
+        when(nomadCloud.getNomadUrl()).thenReturn(wireMockRule.baseUrl());
 
         // WHEN
-        Request request = new Request.Builder().url(wireMockRule.url("/some/thing")).build();
-        String response = nomadApi.checkResponseAndGetBody(request);
+        FormValidation response = nomadApi.checkConnection();
 
         // THEN
-        assertThat(response, notNullValue());
+        assertThat(response.kind, is(FormValidation.Kind.ERROR));
+        assertThat(response.getMessage(), startsWith("Response{protocol=http/1.1, code=404, message=Not Found"));
         assertThat(getFieldValue(nomadApi, "client"), notNullValue());
     }
 
     @Test
-    public void testPOST() {
+    public void testCheckConnectionUnknownHost() {
         // GIVEN
-        stubFor(post(urlEqualTo("/some/thing"))
-                .willReturn(ok()));
+        when(nomadCloud.getNomadUrl()).thenReturn("http://" + UUID.randomUUID());
 
         // WHEN
-        Request request = new Request.Builder()
-                .post(create("", MediaType.get("application/json")))
-                .url(wireMockRule.url("/some/thing"))
-                .build();
-        String response = nomadApi.checkResponseAndGetBody(request);
+        FormValidation response = nomadApi.checkConnection();
 
         // THEN
-        assertThat(response, notNullValue());
-        assertThat(getFieldValue(nomadApi, "client"), notNullValue());
+        assertThat(response.kind, is(FormValidation.Kind.ERROR));
+        assertThat(response.getMessage(), not(emptyString()));
+        assertThat(getFieldValue(nomadApi, "client"), nullValue());
     }
 
 }

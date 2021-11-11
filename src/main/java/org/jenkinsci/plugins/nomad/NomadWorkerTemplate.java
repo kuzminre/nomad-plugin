@@ -2,8 +2,6 @@ package org.jenkinsci.plugins.nomad;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import static org.jenkinsci.plugins.nomad.NomadApi.JSON;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
@@ -24,12 +22,6 @@ import hudson.model.labels.LabelAtom;
 import hudson.util.FormValidation;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
-import okhttp3.Call;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
 
 public class NomadWorkerTemplate implements Describable<NomadWorkerTemplate> {
 
@@ -188,33 +180,36 @@ public class NomadWorkerTemplate implements Describable<NomadWorkerTemplate> {
                 @QueryParameter String clientPassword,
                 @QueryParameter String serverCertificate,
                 @QueryParameter String serverPassword,
+                @QueryParameter String nomadACLCredentialsId,
                 @QueryParameter String jobTemplate) {
             Objects.requireNonNull(Jenkins.get()).checkPermission(Jenkins.ADMINISTER);
 
-            try {
-                String id = UUID.randomUUID().toString();
-                Request request = new Request.Builder()
-                        .url(nomadUrl + "/v1/job/"+id+"/plan")
-                        .put(RequestBody.create(jobTemplate.replace("%WORKER_NAME%", id), JSON))
-                        .build();
+            NomadCloud cloud = new NomadCloud(
+                    "validate-template-" + UUID.randomUUID(),
+                    nomadUrl,
+                    tlsEnabled,
+                    clientCertificate,
+                    Secret.fromString(clientPassword),
+                    serverCertificate,
+                    Secret.fromString(serverPassword),
+                    1,
+                    nomadACLCredentialsId,
+                    false,
+                    null
+            );
 
-                OkHttpClient.Builder clientBuilder = new OkHttpClient.Builder();
-                if (tlsEnabled) {
-                    OkHttpClientHelper.initTLS(clientBuilder, clientCertificate, clientPassword, serverCertificate, serverPassword);
-                }
+            NomadWorkerTemplate template = new NomadWorkerTemplate(
+                    "validate-template",
+                    null,
+                    0,
+                    false,
+                    1,
+                    null,
+                    jobTemplate
+            );
 
-                Call call = clientBuilder.build().newCall(request);
-                try (Response response = call.execute()) {
-                    if (response.isSuccessful()) {
-                        return FormValidation.ok("OK");
-                    }
-                    try (ResponseBody body = response.body()) {
-                        return FormValidation.error(body != null ? body.string() : response.toString());
-                    }
-                }
-            } catch (Exception e) {
-                return FormValidation.error(e.getMessage());
-            }
+            NomadApi api = new NomadApi(cloud);
+            return api.validateTemplate(template);
         }
     }
 }

@@ -1,16 +1,20 @@
 package org.jenkinsci.plugins.nomad;
 
 import com.google.gson.Gson;
+
 import org.apache.commons.lang.StringUtils;
-import org.jenkinsci.plugins.nomad.Api.*;
+import org.jenkinsci.plugins.nomad.Api.JobInfo;
 
 import java.io.IOException;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
 import java.util.logging.Logger;
 
+import hudson.util.FormValidation;
 import hudson.util.Secret;
+import okhttp3.Call;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -18,6 +22,9 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 
+/**
+ * Provides access to Nomad by using the Nomad REST API.
+ */
 public final class NomadApi {
 
     public static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
@@ -29,40 +36,186 @@ public final class NomadApi {
         this.cloud = cloud;
     }
 
-    JobInfo[] getJobs(Request request) {
-        JobInfo[] jobs;
-        String body = checkResponseAndGetBody(request);
-        Gson gson = new Gson();
+    /**
+     * Checks whether Nomad is reachable.
+     * @return FormValidation object with kind = OK or ERROR and a message.
+     */
+    public FormValidation checkConnection() {
+        Request request = createRequestBuilder("/v1/agent/self")
+                .build();
 
-        jobs = gson.fromJson(body, JobInfo[].class);
-        return jobs;
+        try (Response response = executeRequest(request)) {
+            if (response.isSuccessful()) {
+                return FormValidation.ok("Nomad API request succeeded.");
+            }
+            try (ResponseBody body = response.body()) {
+                String message = null;
+                if (body != null) {
+                    message = body.string();
+                }
+                return FormValidation.error(StringUtils.isEmpty(message) ? response.toString() : message);
+            }
+        } catch (Exception e) {
+            return FormValidation.error(e.getMessage());
+        }
     }
 
     /**
-     * Executes a given request and returns the response body. <b>Note:</b> This method reuses the underlying http client but in case of
-     * an error, this client gets destroyed and recreated when this method is called again.
+     * Validates a given {@link NomadWorkerTemplate}.
+     * @return FormValidation object with kind = OK or ERROR and a message.
+     */
+    public FormValidation validateTemplate(NomadWorkerTemplate template) {
+        String id = UUID.randomUUID().toString();
+
+        Request request = createRequestBuilder("/v1/job/" + id + "/plan")
+                .post(RequestBody.create(buildWorkerJob(id, "", template), JSON))
+                .build();
+
+        try (Response response = executeRequest(request)) {
+            if (response.isSuccessful()) {
+                return FormValidation.ok("OK");
+            }
+            try (ResponseBody body = response.body()) {
+                return FormValidation.error(body != null ? body.string() : response.toString());
+            }
+        } catch (IOException e) {
+            return FormValidation.error(e.getMessage());
+        }
+    }
+
+    /**
+     * Creates a new job in Nomad. It logs when it was not successful but there is no further indication whether this was successful or not.
+     * @param workerName Name of the corresponding {@link NomadWorker} (e.g. jenkins-1234)
+     * @param jnlpSecret Secret used by the jenkins agent to connect to Jenkins
+     * @param template Template used to create a new Job in Nomad
+     */
+    public void startWorker(String workerName, String jnlpSecret, NomadWorkerTemplate template) {
+
+        String workerJob = buildWorkerJob(
+                workerName,
+                jnlpSecret,
+                template
+        );
+
+        LOGGER.log(Level.FINE, workerJob);
+
+        Request request = createRequestBuilder("/v1/jobs")
+                .put(RequestBody.create(workerJob, JSON))
+                .build();
+
+        checkResponseAndGetBody(request);
+    }
+
+    /**
+     * Deletes an existing job in Nomad. It logs when it was not successful but there is no further indication whether this was successful
+     * or not.
+     * @param workerName Name of the corresponding {@link NomadWorker} (e.g. jenkins-1234)
+     */
+    public void stopWorker(String workerName) {
+
+        Request request = createRequestBuilder("/v1/job/" + workerName)
+                .delete()
+                .build();
+
+        checkResponseAndGetBody(request);
+    }
+
+    /**
+     * Provides a lists all existing jobs in Nomad with the same prefix. It logs when it was not successful but there is no further
+     * indication whether this was successful or not.
+     * @param prefix Prefix of the job (e.g.jenkins when you want all jobs where the name starts with jenkins)
+     * @return Array of {@link JobInfo} objects or an empty list if there are no Jobs at all or when something was wrong
+     */
+    public JobInfo[] getRunningWorkers(String prefix) {
+
+        Request request = createRequestBuilder("/v1/jobs?prefix=" + prefix)
+                .get()
+                .build();
+        String body = checkResponseAndGetBody(request);
+        return new Gson().fromJson(body, JobInfo[].class);
+    }
+
+    /**
+     * Creates from a given job template a Nomad Job which can be sent to Nomad.
+     * @param name Name of the Nomad Job (e.g. jenkins-1234)
+     * @param secret Secret used by the jenkins agent to connect to Jenkins
+     * @param template Template used to create a new Job in Nomad
+     * @return Nomad Job in JSON format which is can be sent to Nomad via the /v1/jobs REST API
+     */
+    String buildWorkerJob(
+            String name,
+            String secret,
+            NomadWorkerTemplate template
+    ) {
+
+        String job = template.getJobTemplate()
+                .replace("%WORKER_NAME%", name)
+                .replace("%WORKER_SECRET%", secret)
+                .replace("%WORKER_DIR%", template.getRemoteFs());
+
+        LOGGER.log(Level.FINE, String.format("job:%n%s", job));
+        return job;
+    }
+
+    /**
+     * Executes a given request and returns the response body. It logs when it was not successful but there is no further indication
+     * for the callee whether this was successful or not.
      * @param request Any request (not null)
      * @return Response body as String or an empty String. (not null)
+     * @deprecated use {@link #executeRequest(Request)}
      */
-    String checkResponseAndGetBody (Request request) {
+    private String checkResponseAndGetBody (Request request) {
         String bodyString = "";
-        try (Response response = client().newCall(request).execute();
-             ResponseBody responseBody = response.body();
+        try (Response response = executeRequest(request);
+             ResponseBody responseBody = response.body()
         ) {
             bodyString = responseBody.string();
             if (!response.isSuccessful()) {
                 LOGGER.log(Level.SEVERE, "Request was not successful! Code: "+response.code()+", Body: '"+bodyString+"'");
-                if (Arrays.asList(401, 403, 500).contains(response.code())) {
-                    resetClient();
-                }
             }
         } catch (IOException e) {
             LOGGER.log(Level.SEVERE, e.getMessage() + "\nRequest:\n" + request);
-            resetClient();
         } catch (NullPointerException e) {
             LOGGER.log(Level.SEVERE, "Error: Got no Nomad response." + "\nRequest:\n" + request.toString());
         }
         return bodyString;
+    }
+
+    /**
+     * Executes a given request, returns the response and takes care of the underlying client. Note: It is up the callee to close the
+     * {@link Response}.
+     * @param request given request
+     * @return response (not null)
+     * @throws IOException if the request could not be executed
+     * @see Call#execute()
+     */
+    private Response executeRequest(Request request) throws IOException {
+        try {
+            Response response = client().newCall(request).execute();
+            if (!response.isSuccessful() && Arrays.asList(401, 403, 500).contains(response.code())) {
+                resetClient();
+            }
+            return response;
+        } catch (IOException e) {
+            resetClient();
+            throw e;
+        }
+    }
+
+    /**
+     * Provides a new request builder with a fresh Nomad token (if necessary).
+     * @param path Relative path to a Nomad resource (e.g. /v1/agent/self)
+     */
+    private Request.Builder createRequestBuilder(String path) {
+        Request.Builder builder = new Request.Builder()
+                .url(cloud.getNomadUrl()+path);
+
+        String nomadToken = cloud.getNomadACL();
+        if (StringUtils.isNotEmpty(nomadToken)) {
+            builder = builder.addHeader("X-Nomad-Token", nomadToken);
+        }
+
+        return builder;
     }
 
     /**
@@ -100,72 +253,6 @@ public final class NomadApi {
         }
 
         return client;
-    }
-
-    void startWorker(String workerName, String nomadToken, String jnlpSecret, NomadWorkerTemplate template) {
-
-        String workerJob = buildWorkerJob(
-                workerName,
-                jnlpSecret,
-                template
-        );
-
-        LOGGER.log(Level.FINE, workerJob);
-
-        RequestBody body = RequestBody.create(workerJob, JSON);
-        Request.Builder builder = new Request.Builder()
-                .url(cloud.getNomadUrl() + "/v1/jobs");
-
-        if (StringUtils.isNotEmpty(nomadToken))
-            builder = builder.header("X-Nomad-Token", nomadToken);
-
-        Request request = builder.put(body)
-                .build();
-
-        checkResponseAndGetBody(request);
-    }
-
-    void stopWorker(String workerName, String nomadToken) {
-
-        Request.Builder builder = new Request.Builder()
-                .url(cloud.getNomadUrl() + "/v1/job/" + workerName);
-
-        if (StringUtils.isNotEmpty(nomadToken))
-            builder = builder.addHeader("X-Nomad-Token", nomadToken);
-
-        Request request = builder.delete()
-                .build();
-
-        checkResponseAndGetBody(request);
-    }
-
-    JobInfo[] getRunningWorkers(String prefix, String nomadToken) {
-
-        JobInfo[] nomadJobs = null;
-
-        Request.Builder builder = new Request.Builder()
-                .url(cloud.getNomadUrl() + "/v1/jobs?prefix=" + prefix)
-                .get();
-
-        if (StringUtils.isNotEmpty(nomadToken))
-            builder = builder.addHeader("X-Nomad-Token", nomadToken);
-
-        Request request = builder.build();
-        nomadJobs = getJobs(request);
-
-        return nomadJobs;
-    }
-
-    String buildWorkerJob(
-            String name,
-            String secret,
-            NomadWorkerTemplate template
-    ) {
-        return template.getJobTemplate()
-                .replace("%WORKER_NAME%", name)
-                .replace("%WORKER_SECRET%", secret)
-                .replace("%WORKER_DIR%", template.getRemoteFs())
-                ;
     }
 
 }

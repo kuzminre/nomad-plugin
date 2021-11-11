@@ -2,7 +2,6 @@ package org.jenkinsci.plugins.nomad;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
 import static org.mockito.Mockito.when;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
@@ -12,7 +11,6 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMoc
 
 import java.net.URISyntaxException;
 import java.nio.file.Paths;
-import java.util.UUID;
 
 import org.junit.After;
 import org.junit.BeforeClass;
@@ -26,15 +24,15 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
-import hudson.util.Secret;
 
-import okhttp3.Request;
+import hudson.util.FormValidation;
+import hudson.util.Secret;
 
 /**
  * Checks that the TLS support is working as expected.
  */
 @RunWith(MockitoJUnitRunner.class)
-public class NomadApiClientTLSTest {
+public class NomadApiTLSTest {
 
     /**
      * Keystore: contains the public and private keys (e.g. KEYSTORE_CLIENT_A contains key pair of client a)
@@ -52,8 +50,6 @@ public class NomadApiClientTLSTest {
     private static final String TRUSTSTORE_SERVER_B = loadResource("/tls/truststore_server_b.p12");
 
     private static Secret PASSWORD;
-
-    private static final String OK_RESPONSE = UUID.randomUUID().toString();
 
     @ClassRule
     public static JenkinsRule j = new JenkinsRule();
@@ -86,82 +82,83 @@ public class NomadApiClientTLSTest {
     public void testServerIsTrustworthyWithDefaultCA() {
         // GIVEN
         startWiremock(KEYSTORE_SERVER_A, null, false);
+        when(nomadCloud.getNomadUrl()).thenReturn(wireMockServer.baseUrl());
         when(nomadCloud.isTlsEnabled()).thenReturn(true);
 
         // WHEN
-        Request request = new Request.Builder().url(wireMockServer.baseUrl()).build();
-        String response = nomadApi.checkResponseAndGetBody(request);
+        FormValidation response = nomadApi.checkConnection();
 
         // THEN
-        assertThat(response, is(OK_RESPONSE));
+        assertThat(response.getMessage(), is("Nomad API request succeeded."));
     }
 
     @Test
     public void testServerIsNotTrustworthyWithDefaultCA() {
         // GIVEN
         startWiremock(KEYSTORE_SERVER_B, null, false);
+        when(nomadCloud.getNomadUrl()).thenReturn(wireMockServer.baseUrl());
         when(nomadCloud.isTlsEnabled()).thenReturn(true);
 
         // WHEN
-        Request request = new Request.Builder().url(wireMockServer.baseUrl()).build();
-        String response = nomadApi.checkResponseAndGetBody(request);
+        FormValidation response = nomadApi.checkConnection();
 
         // THEN
-        assertThat(response, is(not(OK_RESPONSE)));
+        assertThat(response.getMessage(), is("PKIX path validation failed: java.security.cert.CertPathValidatorException: signature check failed"));
     }
 
     @Test
     public void testServerIsTrustworthyWithCustomCA() {
         // GIVEN
         startWiremock(KEYSTORE_SERVER_B, null, false);
+        when(nomadCloud.getNomadUrl()).thenReturn(wireMockServer.baseUrl());
         when(nomadCloud.isTlsEnabled()).thenReturn(true);
         when(nomadCloud.getServerCertificate()).thenReturn(TRUSTSTORE_SERVER_B);
         when(nomadCloud.getServerPassword()).thenReturn(PASSWORD);
 
         // WHEN
-        Request request = new Request.Builder().url(wireMockServer.baseUrl()).build();
-        String response = nomadApi.checkResponseAndGetBody(request);
+        FormValidation response = nomadApi.checkConnection();
 
         // THEN
-        assertThat(response, is(OK_RESPONSE));
+        assertThat(response.getMessage(), is("Nomad API request succeeded."));
     }
 
     @Test
     public void testClientIsTrustworthyWithDefaultCA() {
         // GIVEN
         startWiremock(KEYSTORE_SERVER_A, TRUSTSTORE_CLIENT_A, true);
+        when(nomadCloud.getNomadUrl()).thenReturn(wireMockServer.baseUrl());
         when(nomadCloud.isTlsEnabled()).thenReturn(true);
         when(nomadCloud.getClientCertificate()).thenReturn(KEYSTORE_CLIENT_A);
         when(nomadCloud.getClientPassword()).thenReturn(PASSWORD);
 
         // WHEN
-        Request request = new Request.Builder().url(wireMockServer.baseUrl()).build();
-        String response = nomadApi.checkResponseAndGetBody(request);
+        FormValidation response = nomadApi.checkConnection();
 
         // THEN
-        assertThat(response, is(OK_RESPONSE));
+        assertThat(response.getMessage(), is("Nomad API request succeeded."));
     }
 
     @Test
     public void testClientIsNotTrustworthyWithDefaultCA() {
         // GIVEN
         startWiremock(KEYSTORE_SERVER_A, TRUSTSTORE_CLIENT_B, true);
+        when(nomadCloud.getNomadUrl()).thenReturn(wireMockServer.baseUrl());
         when(nomadCloud.isTlsEnabled()).thenReturn(true);
         when(nomadCloud.getClientCertificate()).thenReturn(KEYSTORE_CLIENT_A);
         when(nomadCloud.getClientPassword()).thenReturn(PASSWORD);
 
         // WHEN
-        Request request = new Request.Builder().url(wireMockServer.baseUrl()).build();
-        String response = nomadApi.checkResponseAndGetBody(request);
+        FormValidation response = nomadApi.checkConnection();
 
         // THEN
-        assertThat(response, is(not(OK_RESPONSE)));
+        assertThat(response.getMessage(), is("readHandshakeRecord"));
     }
 
     @Test
     public void testClientIsTrustworthyWithCustomCA() {
         // GIVEN
         startWiremock(KEYSTORE_SERVER_B, TRUSTSTORE_CLIENT_A, true);
+        when(nomadCloud.getNomadUrl()).thenReturn(wireMockServer.baseUrl());
         when(nomadCloud.isTlsEnabled()).thenReturn(true);
         when(nomadCloud.getClientCertificate()).thenReturn(KEYSTORE_CLIENT_A);
         when(nomadCloud.getClientPassword()).thenReturn(PASSWORD);
@@ -169,17 +166,17 @@ public class NomadApiClientTLSTest {
         when(nomadCloud.getServerPassword()).thenReturn(PASSWORD);
 
         // WHEN
-        Request request = new Request.Builder().url(wireMockServer.baseUrl()).build();
-        String response = nomadApi.checkResponseAndGetBody(request);
+        FormValidation response = nomadApi.checkConnection();
 
         // THEN
-        assertThat(response, is(OK_RESPONSE));
+        assertThat(response.getMessage(), is("Nomad API request succeeded."));
     }
 
     @Test
     public void testClientIsNotTrustworthyWithCustomCA() {
         // GIVEN
         startWiremock(KEYSTORE_SERVER_B, TRUSTSTORE_CLIENT_B, true);
+        when(nomadCloud.getNomadUrl()).thenReturn(wireMockServer.baseUrl());
         when(nomadCloud.isTlsEnabled()).thenReturn(true);
         when(nomadCloud.getClientCertificate()).thenReturn(KEYSTORE_CLIENT_A);
         when(nomadCloud.getClientPassword()).thenReturn(PASSWORD);
@@ -187,11 +184,10 @@ public class NomadApiClientTLSTest {
         when(nomadCloud.getServerPassword()).thenReturn(PASSWORD);
 
         // WHEN
-        Request request = new Request.Builder().url(wireMockServer.baseUrl()).build();
-        String response = nomadApi.checkResponseAndGetBody(request);
+        FormValidation response = nomadApi.checkConnection();
 
         // THEN
-        assertThat(response, is(not(OK_RESPONSE)));
+        assertThat(response.getMessage(), is("readHandshakeRecord"));
     }
 
     private void startWiremock(String keystore, String truststore, boolean clientAuth) {
@@ -215,12 +211,12 @@ public class NomadApiClientTLSTest {
 
         wireMockServer = new WireMockServer(config);
         wireMockServer.start();
-        wireMockServer.stubFor(get(anyUrl()).willReturn(ok(OK_RESPONSE)));
+        wireMockServer.stubFor(get(anyUrl()).willReturn(ok()));
     }
 
     private static String loadResource(String resource) {
         try {
-            return Paths.get(NomadApiClientTLSTest.class.getResource(resource).toURI()).toString();
+            return Paths.get(NomadApiTLSTest.class.getResource(resource).toURI()).toString();
         } catch (URISyntaxException e) {
             throw new IllegalStateException(e);
         }

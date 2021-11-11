@@ -36,7 +36,8 @@
       <c:select/>
     </f:entry>
 
-    <f:validateButton title="Test connection" progress="Testing API connectivity..." method="testConnection" with="nomadUrl,tlsEnabled,clientCertificate,clientPassword,serverCertificate,serverPassword"/>
+    <f:validateButton title="Test connection" progress="Testing API connectivity..." method="testConnection"
+                      with="nomadUrl,tlsEnabled,clientCertificate,clientPassword,serverCertificate,serverPassword,nomadACLCredentialsId"/>
   </f:block>
 
   <f:entry title="Worker Startup Timeout" field="workerTimeout" description="Worker Startup timeout in minutes">

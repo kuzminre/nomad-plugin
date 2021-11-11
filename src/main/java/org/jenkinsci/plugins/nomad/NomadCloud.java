@@ -1,5 +1,32 @@
 package org.jenkinsci.plugins.nomad;
 
+import static org.apache.commons.lang.StringUtils.trimToEmpty;
+
+import static com.cloudbees.plugins.credentials.CredentialsMatchers.filter;
+import static com.cloudbees.plugins.credentials.CredentialsMatchers.withId;
+import static com.cloudbees.plugins.credentials.CredentialsProvider.lookupCredentials;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import org.jenkinsci.plugins.nomad.Api.JobInfo;
+import org.jenkinsci.plugins.plaincredentials.StringCredentials;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.verb.POST;
+
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
@@ -18,24 +45,6 @@ import hudson.util.ListBoxModel;
 import hudson.util.Secret;
 import jenkins.model.Jenkins;
 import jenkins.slaves.JnlpAgentReceiver;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.ResponseBody;
-import org.jenkinsci.plugins.nomad.Api.JobInfo;
-import org.jenkinsci.plugins.plaincredentials.StringCredentials;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.verb.POST;
-
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import static com.cloudbees.plugins.credentials.CredentialsMatchers.filter;
-import static com.cloudbees.plugins.credentials.CredentialsMatchers.withId;
-import static com.cloudbees.plugins.credentials.CredentialsProvider.lookupCredentials;
-import static org.apache.commons.lang.StringUtils.trimToEmpty;
 
 public class NomadCloud extends AbstractCloudImpl {
 
@@ -86,7 +95,7 @@ public class NomadCloud extends AbstractCloudImpl {
         this.serverCertificate = serverCertificate;
         this.serverPassword = serverPassword;
         this.prune = prune;
-        this.templates = templates;
+        this.templates = Optional.ofNullable(templates).orElse(new ArrayList<>());
 
         readResolve();
     }
@@ -145,7 +154,7 @@ public class NomadCloud extends AbstractCloudImpl {
     }
 
     private void pruneOrphanedWorkers(NomadWorkerTemplate template) {
-        JobInfo[] nomadWorkers = this.nomad.getRunningWorkers(template.getPrefix(), getNomadACL());
+        JobInfo[] nomadWorkers = this.nomad.getRunningWorkers(template.getPrefix());
 
         for (JobInfo worker : nomadWorkers) {
             if (worker.getStatus().equalsIgnoreCase("running")) {
@@ -154,7 +163,7 @@ public class NomadCloud extends AbstractCloudImpl {
 
                 if (node == null) {
                     LOGGER.log(Level.FINE, "Found Orphaned Node: " + worker.getID());
-                    this.nomad.stopWorker(worker.getID(), getNomadACL());
+                    this.nomad.stopWorker(worker.getID());
                 }
             }
         }
@@ -258,26 +267,26 @@ public class NomadCloud extends AbstractCloudImpl {
                 @QueryParameter String clientCertificate,
                 @QueryParameter String clientPassword,
                 @QueryParameter String serverCertificate,
-                @QueryParameter String serverPassword) {
+                @QueryParameter String serverPassword,
+                @QueryParameter String nomadACLCredentialsId) {
             Objects.requireNonNull(Jenkins.get()).checkPermission(Jenkins.ADMINISTER);
-            try {
-                Request request = new Request.Builder()
-                        .url(nomadUrl + "/v1/agent/self")
-                        .build();
 
-                OkHttpClient.Builder clientBuilder = new OkHttpClient.Builder();
-                if (tlsEnabled) {
-                    OkHttpClientHelper.initTLS(clientBuilder, clientCertificate, clientPassword, serverCertificate, serverPassword);
-                }
+            NomadCloud cloud = new NomadCloud(
+                    "check-connection-" + UUID.randomUUID(),
+                    nomadUrl,
+                    tlsEnabled,
+                    clientCertificate,
+                    Secret.fromString(clientPassword),
+                    serverCertificate,
+                    Secret.fromString(serverPassword),
+                    1,
+                    nomadACLCredentialsId,
+                    false,
+                    null
+            );
 
-                ResponseBody response = clientBuilder.build().newCall(request).execute().body();
-                if (response != null) {
-                    response.close();
-                }
-                return FormValidation.ok("Nomad API request succeeded.");
-            } catch (Exception e) {
-                return FormValidation.error(e.getMessage());
-            }
+            NomadApi nomadApi = new NomadApi(cloud);
+            return nomadApi.checkConnection();
         }
 
         @POST
@@ -332,7 +341,7 @@ public class NomadCloud extends AbstractCloudImpl {
             String jnlpSecret = JnlpAgentReceiver.SLAVE_SECRET.mac(workerName);
 
             LOGGER.log(Level.INFO, "Asking Nomad to schedule new Jenkins worker");
-            nomad.startWorker(workerName, getNomadACL(), jnlpSecret, template);
+            nomad.startWorker(workerName, jnlpSecret, template);
 
             // Check scheduling success
             Callable<Boolean> callableTask = () -> {
