@@ -1,5 +1,6 @@
 <div>
-    This is the <strong>JSON</strong> Nomad job definition used to spawn a new agent in Nomad. You can customize it but two important things have to be kept in mind:
+    This is the Nomad job definition used to spawn a new agent in Nomad (JSON or HCL are accepted). You can customize it but two
+    important things have to be kept in mind:
     <ol>
         <li><tt>Job.ID</tt> must be <tt>%WORKER_NAME%</tt></li>
         <li>JNLP agent must be started up and the agent name must be <tt>%WORKER_NAME%</tt></li>

@@ -11,6 +11,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.ok;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.put;
 import static com.github.tomakehurst.wiremock.client.WireMock.putRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
@@ -101,7 +102,7 @@ public class NomadApiTest {
     }
 
     @Test
-    public void testValidateTemplate() {
+    public void testValidateTemplateJSON() {
         // GIVEN
         stubFor(post(urlMatching("/v1/job/([a-f0-9-]*)/plan"))
                 .willReturn(ok()));
@@ -115,6 +116,26 @@ public class NomadApiTest {
         // THEN
         assertThat(response.kind, is(FormValidation.Kind.OK));
         assertThat(response.getMessage(), is("OK"));
+    }
+
+    @Test
+    public void testValidateTemplateHCL() {
+        // GIVEN
+        stubFor(post(urlMatching("/v1/jobs/parse"))
+                .willReturn(ok("{}")));
+        stubFor(post(urlMatching("/v1/job/([a-f0-9-]*)/plan"))
+                .willReturn(ok()));
+        when(cloud.getNomadUrl()).thenReturn(wireMockRule.baseUrl());
+        when(template.getJobTemplate()).thenReturn("job \"example\" { type = \"service\" group \"cache\" {} }");
+        when(template.getRemoteFs()).thenReturn("");
+
+        // WHEN
+        FormValidation response = api.validateTemplate(template);
+
+        // THEN
+        assertThat(response.kind, is(FormValidation.Kind.OK));
+        assertThat(response.getMessage(), is("OK"));
+        verify(postRequestedFor(urlEqualTo("/v1/jobs/parse")));
     }
 
     @Test

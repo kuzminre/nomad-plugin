@@ -1,9 +1,14 @@
 package org.jenkinsci.plugins.nomad;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.nomad.Api.JobInfo;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -148,13 +153,61 @@ public final class NomadApi {
             NomadWorkerTemplate template
     ) {
 
-        String job = template.getJobTemplate()
+        String job = normalizeJobTemplate(template.getJobTemplate())
                 .replace("%WORKER_NAME%", name)
                 .replace("%WORKER_SECRET%", secret)
                 .replace("%WORKER_DIR%", template.getRemoteFs());
 
         LOGGER.log(Level.FINE, String.format("job:%n%s", job));
         return job;
+    }
+
+    /**
+     * Converts a given job template to the Nomad REST API compliant job format.
+     * @param jobTemplate Nomad-Job (HCL or JSON)
+     * @return the given job template (converted to JSON if necessary)
+     */
+    private String normalizeJobTemplate(String jobTemplate) {
+        if (!isJSON(jobTemplate)) {
+            Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+
+            JsonObject jobHCL = new JsonObject();
+            jobHCL.addProperty("JobHCL", jobTemplate);
+
+            Request request = createRequestBuilder("/v1/jobs/parse")
+                    .post(RequestBody.create(gson.toJson(jobHCL), JSON))
+                    .build();
+
+            try (Response response = executeRequest(request);
+                 ResponseBody body = response.body()
+            ) {
+                JsonObject jobJson = new JsonObject();
+                if (body != null) {
+                    jobJson.add("Job", gson.fromJson(body.string(), JsonObject.class));
+                    return gson.toJson(jobJson);
+                }
+            } catch (Exception e) {
+                LOGGER.log(Level.SEVERE, "Converting job from HCL to JSON failed!", e);
+            }
+        }
+
+        return jobTemplate;
+    }
+
+    /**
+     * Returns true if the given String is a valid JSON document.
+     */
+    private boolean isJSON(String source) {
+        try {
+            new JSONObject(source);
+        } catch (JSONException ex) {
+            try {
+                new JSONArray(source);
+            } catch (JSONException ex1) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
