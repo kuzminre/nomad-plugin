@@ -40,7 +40,7 @@
         <java.level>8</java.level>
         <findbugs.failOnError>false</findbugs.failOnError>
         <jenkins.version>2.308</jenkins.version>
-        <json-path-assert.version>2.6.0</json-path-assert.version>
+        <json-path-assert.version>2.7.0</json-path-assert.version>
     </properties>
 
     <developers>
