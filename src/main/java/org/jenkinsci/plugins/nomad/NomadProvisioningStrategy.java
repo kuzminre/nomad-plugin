@@ -8,7 +8,7 @@ import hudson.slaves.NodeProvisioner;
 import hudson.slaves.NodeProvisioner.PlannedNode;
 import jenkins.model.Jenkins;
 
-import javax.annotation.Nonnull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -31,9 +31,9 @@ public class NomadProvisioningStrategy extends NodeProvisioner.Strategy {
     /**
      * Do asap provisioning
      */
-    @Nonnull
+    @NonNull
     @Override
-    public NodeProvisioner.StrategyDecision apply(@Nonnull NodeProvisioner.StrategyState strategyState) {
+    public NodeProvisioner.StrategyDecision apply(@NonNull NodeProvisioner.StrategyState strategyState) {
         final Label label = strategyState.getLabel();
         LoadStatisticsSnapshot snapshot = strategyState.getSnapshot();
         for (Cloud nomadCloud : Jenkins.get().clouds) {
