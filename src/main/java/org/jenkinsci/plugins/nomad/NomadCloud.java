@@ -6,6 +6,7 @@ import static com.cloudbees.plugins.credentials.CredentialsMatchers.filter;
 import static com.cloudbees.plugins.credentials.CredentialsMatchers.withId;
 import static com.cloudbees.plugins.credentials.CredentialsProvider.lookupCredentials;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -22,7 +23,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.jenkinsci.plugins.nomad.Api.JobInfo;
+import org.jenkinsci.plugins.nomad.Api.JobSummary;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
+import org.json.JSONObject;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.verb.POST;
@@ -153,6 +156,14 @@ public class NomadCloud extends AbstractCloudImpl {
         return Collections.emptyList();
     }
 
+
+    /**
+     * Determines if some nomad worker needs to be stopped.
+     * A nomad job can be stopped if there is no related jenkins agent running.
+     * Make sure that we leave enough time for new worker to connect to Jenkins before removal.
+     *
+     * @param template - the {@link NomadWorkerTemplate} that was used to start workers.
+     */
     private void pruneOrphanedWorkers(NomadWorkerTemplate template) {
         JobInfo[] nomadWorkers = this.nomad.getRunningWorkers(template.getPrefix());
 
@@ -162,8 +173,17 @@ public class NomadCloud extends AbstractCloudImpl {
                 Node node = Jenkins.get().getNode(worker.getName());
 
                 if (node == null) {
-                    LOGGER.log(Level.FINE, "Found Orphaned Node: " + worker.getID());
-                    this.nomad.stopWorker(worker.getID());
+                    JobSummary jobSummary = worker.getJobSummary();
+                    String jobNamespace = worker.getJobSummary().getNamespace();
+                    JSONObject job = this.nomad.getRunningWorker(jobSummary.getJobID(), jobNamespace);
+                    String jobRegion = job.getString("Region");
+                    Instant expiryTime = Instant.ofEpochMilli(job.getLong("SubmitTime"));
+                    expiryTime.plusSeconds(this.workerTimeout * 60);
+                    Instant now = Instant.now();
+                    if (now.isAfter(expiryTime)) {
+                        LOGGER.log(Level.FINE, "Found Orphaned Node: " + worker.getID() + " in namespace " + jobNamespace + " in region " + jobRegion);
+                        this.nomad.stopWorker(worker.getID(), jobNamespace, jobRegion);
+                    }
                 }
             }
         }
@@ -341,7 +361,14 @@ public class NomadCloud extends AbstractCloudImpl {
             String jnlpSecret = JnlpAgentReceiver.SLAVE_SECRET.mac(workerName);
 
             LOGGER.log(Level.INFO, "Asking Nomad to schedule new Jenkins worker");
-            nomad.startWorker(workerName, jnlpSecret, template);
+
+            String workerJob = nomad.startWorker(workerName, jnlpSecret, template);
+            JSONObject workerJobJSON = new JSONObject(workerJob).getJSONObject("Job");
+            String namespace = workerJobJSON.optString("Namespace");
+            if (!namespace.equals("")) {
+                   worker.setNamespace(namespace);
+            }
+            worker.setRegion(workerJobJSON.optString("Region"));
 
             // Check scheduling success
             Callable<Boolean> callableTask = () -> {

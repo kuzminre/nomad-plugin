@@ -15,11 +15,14 @@ import java.util.UUID;
 import java.util.logging.Level;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.logging.Logger;
+import java.util.Map;
 
 import hudson.util.FormValidation;
 import hudson.util.Secret;
 import okhttp3.Call;
+import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -46,7 +49,7 @@ public final class NomadApi {
      * @return FormValidation object with kind = OK or ERROR and a message.
      */
     public FormValidation checkConnection() {
-        Request request = createRequestBuilder("/v1/agent/self")
+        Request request = createRequestBuilder("/v1/agent/self", null)
                 .build();
 
         try (Response response = executeRequest(request)) {
@@ -72,7 +75,7 @@ public final class NomadApi {
     public FormValidation validateTemplate(NomadWorkerTemplate template) {
         String id = UUID.randomUUID().toString();
 
-        Request request = createRequestBuilder("/v1/job/" + id + "/plan")
+        Request request = createRequestBuilder("/v1/job/" + id + "/plan", null)
                 .post(RequestBody.create(buildWorkerJob(id, "", template), JSON))
                 .build();
 
@@ -94,7 +97,7 @@ public final class NomadApi {
      * @param jnlpSecret Secret used by the jenkins agent to connect to Jenkins
      * @param template Template used to create a new Job in Nomad
      */
-    public void startWorker(String workerName, String jnlpSecret, NomadWorkerTemplate template) {
+    public String startWorker(String workerName, String jnlpSecret, NomadWorkerTemplate template) {
 
         String workerJob = buildWorkerJob(
                 workerName,
@@ -104,21 +107,29 @@ public final class NomadApi {
 
         LOGGER.log(Level.FINE, workerJob);
 
-        Request request = createRequestBuilder("/v1/jobs")
+        Request request = createRequestBuilder("/v1/jobs", null)
                 .put(RequestBody.create(workerJob, JSON))
                 .build();
 
         checkResponseAndGetBody(request);
+        return workerJob;
     }
 
     /**
      * Deletes an existing job in Nomad. It logs when it was not successful but there is no further indication whether this was successful
      * or not.
      * @param workerName Name of the corresponding {@link NomadWorker} (e.g. jenkins-1234)
+     * @param namespace Name of the nomad namespace where job is running
+     * @param region Name of the region where job is running
      */
-    public void stopWorker(String workerName) {
+    public void stopWorker(String workerName, String namespace, String region) {
+        Map<String,String> params = new HashMap<>();
+        if (namespace != null)
+            params.put("namespace", namespace);
+        if (region != null && !region.equals("global"))
+            params.put("region", region);
 
-        Request request = createRequestBuilder("/v1/job/" + workerName)
+        Request request = createRequestBuilder("/v1/job/" + workerName, params)
                 .delete()
                 .build();
 
@@ -132,12 +143,32 @@ public final class NomadApi {
      * @return Array of {@link JobInfo} objects or an empty list if there are no Jobs at all or when something was wrong
      */
     public JobInfo[] getRunningWorkers(String prefix) {
+        Map<String,String> params = new HashMap<>();
+        params.put("namespace", "*");
+        params.put("prefix", prefix);
 
-        Request request = createRequestBuilder("/v1/jobs?prefix=" + prefix)
+        Request request = createRequestBuilder("/v1/jobs", params)
                 .get()
                 .build();
         String body = checkResponseAndGetBody(request);
         return new Gson().fromJson(body, JobInfo[].class);
+    }
+
+    /**
+     * Get all job specifications and status
+     * @param jobID Id of the job
+     * @param namespace Name of the nomad namespace where job is running
+     * @return {@link JSONObject} object
+     */
+    public JSONObject getRunningWorker(String jobID, String namespace) {
+        Map<String,String> params = new HashMap<>();
+        if (namespace != null)
+            params.put("namespace", namespace);
+        Request request = createRequestBuilder("/v1/job/" + jobID, params)
+                .get()
+                .build();
+        String body = checkResponseAndGetBody(request);
+        return new JSONObject(body);
     }
 
     /**
@@ -174,7 +205,7 @@ public final class NomadApi {
             JsonObject jobHCL = new JsonObject();
             jobHCL.addProperty("JobHCL", jobTemplate);
 
-            Request request = createRequestBuilder("/v1/jobs/parse")
+            Request request = createRequestBuilder("/v1/jobs/parse", null)
                     .post(RequestBody.create(gson.toJson(jobHCL), JSON))
                     .build();
 
@@ -224,7 +255,7 @@ public final class NomadApi {
         ) {
             bodyString = responseBody.string();
             if (!response.isSuccessful()) {
-                LOGGER.log(Level.SEVERE, "Request was not successful! Code: "+response.code()+", Body: '"+bodyString+"'");
+                LOGGER.log(Level.SEVERE, "Request was not successful! Code: "+response.code()+", Body: '"+bodyString+"'"+"URL: "+request.url());
             }
         } catch (IOException e) {
             LOGGER.log(Level.SEVERE, e.getMessage() + "\nRequest:\n" + request);
@@ -259,10 +290,21 @@ public final class NomadApi {
      * Provides a new request builder with a fresh Nomad token (if necessary).
      * @param path Relative path to a Nomad resource (e.g. /v1/agent/self)
      */
-    private Request.Builder createRequestBuilder(String path) {
-        Request.Builder builder = new Request.Builder()
-                .url(cloud.getNomadUrl()+path);
-
+    private Request.Builder createRequestBuilder(String path, Map<String,String> params) {
+        Request.Builder builder = new Request.Builder();
+        String nomadUrl = cloud.getNomadUrl();
+        if (nomadUrl == null || path == null)
+            throw new RuntimeException("Unable to send request to Nomad as nomad url/path is empty");
+        HttpUrl httpUrl = HttpUrl.parse(nomadUrl+path);
+        if (httpUrl == null)
+            throw new RuntimeException("Unable to parse Nomad url");
+        HttpUrl.Builder httpBuilder = httpUrl.newBuilder();
+        if (params != null) {
+           for(Map.Entry<String, String> param : params.entrySet()) {
+               httpBuilder.addQueryParameter(param.getKey(),param.getValue());
+           }
+        }
+        builder.url(httpBuilder.build());
         String nomadToken = cloud.getNomadACL();
         if (StringUtils.isNotEmpty(nomadToken)) {
             builder = builder.addHeader("X-Nomad-Token", nomadToken);

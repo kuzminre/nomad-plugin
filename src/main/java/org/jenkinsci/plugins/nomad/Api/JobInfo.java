@@ -7,18 +7,21 @@ public final class JobInfo {
     private String Type;
     private String Status;
     private Integer Priority;
+    private JobSummary JobSummary;
 
     public JobInfo(
             String ID,
             String name,
             String type,
             String status,
-            Integer priority) {
+            Integer priority,
+            JobSummary jobsummary) {
         this.ID = ID;
         Name = name;
         Type = type;
         Status = status;
         Priority = priority;
+        JobSummary = jobsummary;
     }
 
     public String getID() {
@@ -60,4 +63,13 @@ public final class JobInfo {
     public void setStatus(String status) {
         Status = status;
     }
+
+    public JobSummary getJobSummary() {
+        return JobSummary;
+    }
+
+    public void setJobSummary(JobSummary JobSummary) {
+        this.JobSummary = JobSummary;
+    }
+
 }

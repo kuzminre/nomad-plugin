@@ -22,6 +22,8 @@ import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import java.util.UUID;
 
 import org.jenkinsci.plugins.nomad.Api.JobInfo;
+import org.jenkinsci.plugins.nomad.Api.JobSummary;
+import org.json.JSONObject;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -72,18 +74,42 @@ public class NomadApiTest {
         stubFor(put(urlEqualTo("/v1/jobs"))
                 .willReturn(ok()));
         when(cloud.getNomadUrl()).thenReturn(wireMockRule.baseUrl());
-        when(template.getJobTemplate()).thenReturn("{}");
+        when(template.getJobTemplate()).thenReturn("{\"Job\": { \"ID\": \"job-id-1\" } }");
         when(template.getRemoteFs()).thenReturn("");
 
         // WHEN
         String workerName = UUID.randomUUID().toString();
         String secret = UUID.randomUUID().toString();
-        api.startWorker(workerName, secret, template);
+        String workerJob = api.startWorker(workerName, secret, template);
 
         // THEN
         verify(putRequestedFor(urlEqualTo("/v1/jobs"))
                 .withHeader("Content-Type", equalTo("application/json; charset=UTF-8"))
         );
+        JSONObject workerJobJSON = new JSONObject(workerJob);
+        assertThat(workerJobJSON.getJSONObject("Job").optString("Namespace"), is(""));
+    }
+
+    @Test
+    public void testStartWorkerWithNS() {
+        // GIVEN
+        stubFor(put(urlEqualTo("/v1/jobs"))
+                .willReturn(ok()));
+        when(cloud.getNomadUrl()).thenReturn(wireMockRule.baseUrl());
+        when(template.getJobTemplate()).thenReturn("{\"Job\": { \"ID\": \"job-id-1\", \"Namespace\": \"ns1\" } }");
+        when(template.getRemoteFs()).thenReturn("");
+
+        // WHEN
+        String workerName = UUID.randomUUID().toString();
+        String secret = UUID.randomUUID().toString();
+        String workerJob = api.startWorker(workerName, secret, template);
+
+        // THEN
+        verify(putRequestedFor(urlEqualTo("/v1/jobs"))
+                .withHeader("Content-Type", equalTo("application/json; charset=UTF-8"))
+        );
+        JSONObject workerJobJSON = new JSONObject(workerJob);
+        assertThat(workerJobJSON.getJSONObject("Job").optString("Namespace"), is("ns1"));
     }
 
     @Test
@@ -95,10 +121,55 @@ public class NomadApiTest {
         when(cloud.getNomadUrl()).thenReturn(wireMockRule.baseUrl());
 
         // WHEN
-        api.stopWorker(workerName);
+        api.stopWorker(workerName, null, null);
 
         // THEN
         verify(deleteRequestedFor(urlEqualTo("/v1/job/" + workerName)));
+    }
+
+    @Test
+    public void testStopWorkerWithNS() {
+        // GIVEN
+        String workerName = UUID.randomUUID().toString();
+        stubFor(delete(urlEqualTo("/v1/job/" + workerName + "?namespace=ns1"))
+                .willReturn(ok()));
+        when(cloud.getNomadUrl()).thenReturn(wireMockRule.baseUrl());
+
+        // WHEN
+        api.stopWorker(workerName, "ns1", null);
+
+        // THEN
+        verify(deleteRequestedFor(urlEqualTo("/v1/job/" + workerName + "?namespace=ns1")));
+    }
+
+    @Test
+    public void testStopWorkerWithNSAndRegion() {
+        // GIVEN
+        String workerName = UUID.randomUUID().toString();
+        stubFor(delete(urlEqualTo("/v1/job/" + workerName + "?namespace=ns1&region=regionA"))
+                .willReturn(ok()));
+        when(cloud.getNomadUrl()).thenReturn(wireMockRule.baseUrl());
+
+        // WHEN
+        api.stopWorker(workerName, "ns1", "regionA");
+
+        // THEN
+        verify(deleteRequestedFor(urlEqualTo("/v1/job/" + workerName + "?namespace=ns1&region=regionA")));
+    }
+
+    @Test
+    public void testStopWorkerWithNSAndGlobalRegion() {
+        // GIVEN
+        String workerName = UUID.randomUUID().toString();
+        stubFor(delete(urlEqualTo("/v1/job/" + workerName + "?namespace=ns1"))
+                .willReturn(ok()));
+        when(cloud.getNomadUrl()).thenReturn(wireMockRule.baseUrl());
+
+        // WHEN
+        api.stopWorker(workerName, "ns1", "global");
+
+        // THEN
+        verify(deleteRequestedFor(urlEqualTo("/v1/job/" + workerName + "?namespace=ns1")));
     }
 
     @Test
@@ -141,7 +212,7 @@ public class NomadApiTest {
     @Test
     public void testGetJobs() {
         // GIVEN
-        stubFor(get(urlMatching("/v1/jobs\\?prefix=(.*)"))
+        stubFor(get(urlMatching("/v1/jobs\\?prefix=jenkins&namespace=\\*"))
                 .willReturn(ok("[{\"ID\":\"jenkins-A\",\"Name\":\"jenkins-A\",\"Priority\":50,\"Status\":\"pending\"}]")));
         when(cloud.getNomadUrl()).thenReturn(wireMockRule.baseUrl());
 
@@ -157,9 +228,31 @@ public class NomadApiTest {
     }
 
     @Test
+    public void testGetJobsWithNamespace() {
+        // GIVEN
+        stubFor(get(urlMatching("/v1/jobs\\?prefix=jenkins&namespace=\\*"))
+                .willReturn(ok("[{\"ID\":\"jenkins-A\",\"Name\":\"jenkins-A\",\"Priority\":50,\"Status\":\"pending\", \"JobSummary\": { \"JobID\": \"example\", \"Namespace\": \"ns1\" } }]")));
+        when(cloud.getNomadUrl()).thenReturn(wireMockRule.baseUrl());
+
+        // WHEN
+        JobInfo[] jobs = api.getRunningWorkers("jenkins");
+
+        // THEN
+        assertThat(jobs.length, is(1));
+        assertThat(jobs[0].getID(), is("jenkins-A"));
+        assertThat(jobs[0].getName(), is("jenkins-A"));
+        assertThat(jobs[0].getStatus(), is("pending"));
+        assertThat(jobs[0].getPriority(), is(50));
+
+        JobSummary jobSummary = jobs[0].getJobSummary();
+        assertThat(jobSummary.getJobID(), is("example"));
+        assertThat(jobSummary.getNamespace(), is("ns1"));
+    }
+
+    @Test
     public void testGetJobsIsEmpty() {
         // GIVEN
-        stubFor(get(urlMatching("/v1/jobs\\?prefix=(.*)"))
+        stubFor(get(urlMatching("/v1/jobs\\?prefix=jenkins&namespace=\\*"))
                 .willReturn(ok("[]")));
         when(cloud.getNomadUrl()).thenReturn(wireMockRule.baseUrl());
 

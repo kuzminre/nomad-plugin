@@ -11,6 +11,9 @@ maven-release-plugin_perform:
 hpi:
 	@mvn org.jenkins-ci.tools:maven-hpi-plugin:hpi
 
+spotbugs:
+	@mvn spotbugs:check
+
 .PHONY: all release
 
 .EXPORT_ALL_VARIABLES:

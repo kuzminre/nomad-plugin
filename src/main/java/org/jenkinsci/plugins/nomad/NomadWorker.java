@@ -22,6 +22,8 @@ public class NomadWorker extends AbstractCloudSlave implements EphemeralNode {
     private final boolean reusable;
     private final String cloudName;
     private final int idleTerminationInMinutes;
+    private String namespace;
+    private String region;
 
     @DataBoundConstructor
     public NomadWorker(String name, String cloudName, String labelString, int numExecutors, int idleTerminationInMinutes,
@@ -36,6 +38,8 @@ public class NomadWorker extends AbstractCloudSlave implements EphemeralNode {
         this.cloudName = cloudName;
         this.reusable = reusable;
         this.idleTerminationInMinutes = idleTerminationInMinutes;
+        this.namespace = null;
+        this.region = null;
     }
 
     @Override
@@ -50,8 +54,9 @@ public class NomadWorker extends AbstractCloudSlave implements EphemeralNode {
 
     @Override
     protected void _terminate(TaskListener listener) {
-        LOGGER.log(Level.INFO, "Asking Nomad to deregister worker '" + getNodeName() + "'");
-        getCloud().nomad().stopWorker(getNodeName());
+        LOGGER.log(Level.INFO, "Asking Nomad to deregister worker '" + getNodeName() + "' in namespace '" + getNamespace() +
+                "' in region '" + getRegion() + "'");
+        getCloud().nomad().stopWorker(getNodeName(), getNamespace(), getRegion());
     }
 
     public NomadCloud getCloud() {
@@ -89,4 +94,21 @@ public class NomadWorker extends AbstractCloudSlave implements EphemeralNode {
             return false;
         }
     }
+
+    public String getNamespace() {
+        return this.namespace;
+    }
+
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
+    }
+
+    public String getRegion() {
+        return this.region;
+    }
+
+    public void setRegion(String region) {
+        this.region = region;
+    }
+
 }
