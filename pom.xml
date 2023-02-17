@@ -10,7 +10,7 @@
     </parent>
 
     <artifactId>nomad</artifactId>
-    <version>${revision}${changelist}</version>
+    <version>0.10.0</version>
     <packaging>hpi</packaging>
 
     <name>Nomad Plugin</name>
@@ -29,7 +29,7 @@
         <connection>scm:git:git@github.com:jenkinsci/nomad-plugin.git</connection>
         <developerConnection>scm:git:git@github.com:jenkinsci/${project.artifactId}-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/nomad-plugin</url>
-        <tag>${scmTag}</tag>
+        <tag>v0.10.0</tag>
     </scm>
 
     <properties>
