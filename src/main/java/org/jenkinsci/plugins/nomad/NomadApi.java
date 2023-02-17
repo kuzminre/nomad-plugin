@@ -209,12 +209,12 @@ public final class NomadApi {
                     .post(RequestBody.create(gson.toJson(jobHCL), JSON))
                     .build();
 
-            try (Response response = executeRequest(request);
-                 ResponseBody body = response.body()
-            ) {
-                JsonObject jobJson = new JsonObject();
+            try (Response response = executeRequest(request)) {
+                ResponseBody body = response.body();
                 if (body != null) {
+                    JsonObject jobJson = new JsonObject();
                     jobJson.add("Job", gson.fromJson(body.string(), JsonObject.class));
+                    body.close();
                     return gson.toJson(jobJson);
                 }
             } catch (Exception e) {
@@ -251,16 +251,17 @@ public final class NomadApi {
     private String checkResponseAndGetBody (Request request) {
         String bodyString = "";
         try (Response response = executeRequest(request);
-             ResponseBody responseBody = response.body()
+             ResponseBody body = response.body()
         ) {
-            bodyString = responseBody.string();
+            if (body != null) {
+                bodyString = body.string();
+            }
+
             if (!response.isSuccessful()) {
                 LOGGER.log(Level.SEVERE, "Request was not successful! Code: "+response.code()+", Body: '"+bodyString+"'"+"URL: "+request.url());
             }
         } catch (IOException e) {
             LOGGER.log(Level.SEVERE, e.getMessage() + "\nRequest:\n" + request);
-        } catch (NullPointerException e) {
-            LOGGER.log(Level.SEVERE, "Error: Got no Nomad response." + "\nRequest:\n" + request.toString());
         }
         return bodyString;
     }

@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.48</version>
+        <version>4.55</version>
         <relativePath />
     </parent>
 
@@ -36,9 +36,7 @@
     <properties>
         <revision>0.9.4</revision>
         <changelist>-SNAPSHOT</changelist>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <findbugs.failOnError>false</findbugs.failOnError>
-        <jenkins.version>2.340</jenkins.version>
+        <jenkins.version>2.361</jenkins.version>
         <json-path-assert.version>2.7.0</json-path-assert.version>
     </properties>
 
