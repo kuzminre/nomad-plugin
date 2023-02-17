@@ -37,7 +37,6 @@
         <revision>0.9.4</revision>
         <changelist>-SNAPSHOT</changelist>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <java.level>8</java.level>
         <findbugs.failOnError>false</findbugs.failOnError>
         <jenkins.version>2.340</jenkins.version>
         <json-path-assert.version>2.7.0</json-path-assert.version>
