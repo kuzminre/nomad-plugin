@@ -139,6 +139,7 @@ public class NomadCloud extends AbstractCloudImpl {
                     LOGGER.log(Level.INFO, "Excess workload of " + excessWorkload + ", provisioning new Jenkins worker on Nomad cluster");
 
                     final String workerName = template.createWorkerName();
+                    LOGGER.log(Level.INFO, "Scheduling provision of " + workerName + " on Nomad cluster");
                     nodes.add(new NodeProvisioner.PlannedNode(
                             workerName,
                             NomadComputer.threadPoolForRemoting.submit(
@@ -360,7 +361,7 @@ public class NomadCloud extends AbstractCloudImpl {
 
             String jnlpSecret = JnlpAgentReceiver.SLAVE_SECRET.mac(workerName);
 
-            LOGGER.log(Level.INFO, "Asking Nomad to schedule new Jenkins worker");
+            LOGGER.log(Level.INFO, "Asking Nomad to schedule new Jenkins worker " + workerName);
 
             String workerJob = nomad.startWorker(workerName, jnlpSecret, template);
             JSONObject workerJobJSON = new JSONObject(workerJob).getJSONObject("Job");
@@ -373,10 +374,10 @@ public class NomadCloud extends AbstractCloudImpl {
             // Check scheduling success
             Callable<Boolean> callableTask = () -> {
                 try {
-                    LOGGER.log(Level.INFO, "Worker scheduled, waiting for connection");
+                    LOGGER.log(Level.INFO, "Worker " + workerName + " scheduled, waiting for connection");
                     Objects.requireNonNull(worker.toComputer()).waitUntilOnline();
                 } catch (InterruptedException e) {
-                    LOGGER.log(Level.SEVERE, "Waiting for connection was interrupted");
+                    LOGGER.log(Level.SEVERE, "Waiting for connection was interrupted for " + workerName);
                     return false;
                 }
                 return true;
@@ -388,11 +389,11 @@ public class NomadCloud extends AbstractCloudImpl {
 
             try {
                 future.get(cloud.workerTimeout, TimeUnit.MINUTES);
-                LOGGER.log(Level.INFO, "Connection established");
+                LOGGER.log(Level.INFO, "Connection established with worker " + workerName);
             } catch (Exception ex) {
-                LOGGER.log(Level.SEVERE, "Worker computer did not come online within " + workerTimeout + " minutes, terminating worker" + worker);
+                LOGGER.log(Level.SEVERE, "Worker computer did not come online within " + workerTimeout + " minutes, terminating worker " + worker);
                 worker.terminate();
-                throw new RuntimeException("Timed out waiting for agent to start up. Timeout: " + workerTimeout + " minutes.");
+                throw new RuntimeException("Timed out waiting for agent to start up on worker " + workerName + ". Timeout: " + workerTimeout + " minutes.");
             } finally {
                 future.cancel(true);
                 executorService.shutdown();
