@@ -2,14 +2,18 @@ package org.jenkinsci.plugins.nomad;
 
 import hudson.model.Executor;
 import hudson.model.Queue;
+import hudson.remoting.Channel;
 import hudson.slaves.AbstractCloudComputer;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class NomadComputer extends AbstractCloudComputer<NomadWorker> {
 
     private static final Logger LOGGER = Logger.getLogger(NomadComputer.class.getName());
+    private transient long connectedSince = 0;
 
     public NomadComputer(NomadWorker worker) {
         super(worker);
@@ -46,4 +50,12 @@ public class NomadComputer extends AbstractCloudComputer<NomadWorker> {
         return String.format("%s (worker: %s)", getName(), getNode());
     }
 
+    public long getConnectedSince() {
+        return connectedSince;
+    }
+
+    public void setChannel(Channel channel, OutputStream launchLog, Channel.Listener listener) throws IOException, InterruptedException {
+        super.setChannel(channel, launchLog, listener);
+        connectedSince = System.currentTimeMillis();
+    }
 }
