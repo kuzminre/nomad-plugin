@@ -1,7 +1,9 @@
 package org.jenkinsci.plugins.nomad;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.emptyString;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.Mockito.when;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
@@ -89,6 +91,7 @@ public class NomadApiTLSTest {
         FormValidation response = nomadApi.checkConnection();
 
         // THEN
+        assertThat(response.kind, is(FormValidation.Kind.OK));
         assertThat(response.getMessage(), is("Nomad API request succeeded."));
     }
 
@@ -103,7 +106,8 @@ public class NomadApiTLSTest {
         FormValidation response = nomadApi.checkConnection();
 
         // THEN
-        assertThat(response.getMessage(), is("PKIX path validation failed: java.security.cert.CertPathValidatorException: signature check failed"));
+        assertThat(response.kind, is(FormValidation.Kind.ERROR));
+        assertThat(response.getMessage(), not(emptyString()));
     }
 
     @Test
@@ -119,6 +123,7 @@ public class NomadApiTLSTest {
         FormValidation response = nomadApi.checkConnection();
 
         // THEN
+        assertThat(response.kind, is(FormValidation.Kind.OK));
         assertThat(response.getMessage(), is("Nomad API request succeeded."));
     }
 
@@ -135,6 +140,7 @@ public class NomadApiTLSTest {
         FormValidation response = nomadApi.checkConnection();
 
         // THEN
+        assertThat(response.kind, is(FormValidation.Kind.OK));
         assertThat(response.getMessage(), is("Nomad API request succeeded."));
     }
 
@@ -151,7 +157,8 @@ public class NomadApiTLSTest {
         FormValidation response = nomadApi.checkConnection();
 
         // THEN
-        assertThat(response.getMessage(), is("readHandshakeRecord"));
+        assertThat(response.kind, is(FormValidation.Kind.ERROR));
+        assertThat(response.getMessage(), not(emptyString()));
     }
 
     @Test
@@ -169,6 +176,7 @@ public class NomadApiTLSTest {
         FormValidation response = nomadApi.checkConnection();
 
         // THEN
+        assertThat(response.kind, is(FormValidation.Kind.OK));
         assertThat(response.getMessage(), is("Nomad API request succeeded."));
     }
 
@@ -187,7 +195,8 @@ public class NomadApiTLSTest {
         FormValidation response = nomadApi.checkConnection();
 
         // THEN
-        assertThat(response.getMessage(), is("readHandshakeRecord"));
+        assertThat(response.kind, is(FormValidation.Kind.ERROR));
+        assertThat(response.getMessage(), not(emptyString()));
     }
 
     private void startWiremock(String keystore, String truststore, boolean clientAuth) {
