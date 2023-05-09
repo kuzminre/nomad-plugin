@@ -37,8 +37,11 @@ public class NomadRetentionStrategy extends CloudRetentionStrategy {
         if (nc.getNode() == null) {
             return 1;
         }
+        final long workerTimeoutMilliseconds = MINUTES.toMillis(nc.getNode().getCloud().getWorkerTimeout());
+        final long idleMilliseconds = System.currentTimeMillis() - c.getIdleStartMilliseconds();
         LOGGER.log(Level.FINEST, "Checking nomad agent {0} for retention.", nc.getName());
-        if (nc.getConnectedSince() == 0 ) {
+        // Do not terminate nodes on early start stage before workerTimeout expires
+        if (nc.getConnectedSince() == 0 && idleMilliseconds < workerTimeoutMilliseconds) {
             LOGGER.log(Level.FINEST, "Agent {0} has never been connected to Jenkins, skipped.", nc.getName());
             return 1;
         }
