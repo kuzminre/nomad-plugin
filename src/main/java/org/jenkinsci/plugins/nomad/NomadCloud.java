@@ -178,7 +178,7 @@ public class NomadCloud extends AbstractCloudImpl {
                     String jobNamespace = worker.getJobSummary().getNamespace();
                     JSONObject job = this.nomad.getRunningWorker(jobSummary.getJobID(), jobNamespace);
                     String jobRegion = job.getString("Region");
-                    Instant expiryTime = Instant.ofEpochMilli(job.getLong("SubmitTime"));
+                    Instant expiryTime = Instant.ofEpochMilli(job.getLong("SubmitTime") / 1000000);
                     expiryTime.plusSeconds(this.workerTimeout * 60);
                     Instant now = Instant.now();
                     if (now.isAfter(expiryTime)) {

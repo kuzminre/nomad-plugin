@@ -33,7 +33,7 @@
     </scm>
 
     <properties>
-        <revision>0.10.0.HF2</revision>
+        <revision>0.10.0.HF3</revision>
         <changelist>-SNAPSHOT</changelist>
         <jenkins.version>2.375</jenkins.version>
         <json-path-assert.version>2.8.0</json-path-assert.version>
